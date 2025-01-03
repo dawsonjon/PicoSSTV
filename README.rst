@@ -19,6 +19,7 @@ Getting the Code
 ----------------
 
 .. code::
+
   git clone https://github.com/dawsonjon/PicoSSTV.git
 
 
