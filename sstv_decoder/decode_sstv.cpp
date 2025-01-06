@@ -65,7 +65,7 @@ void c_sstv_decoder :: sample_to_pixel(uint16_t &x, uint16_t &y, uint8_t &colour
 
   }
 
-  else if( decode_mode == pd_50 || decode_mode == pd_90 )
+  else if( decode_mode == pd_50 || decode_mode == pd_90 || decode_mode == pd_120 || decode_mode == pd_180)
   {
     static const uint8_t colourmap[5] = {0, 1, 2, 3, 4};
 
@@ -236,6 +236,36 @@ c_sstv_decoder :: c_sstv_decoder(float Fs)
   modes[pd_90].samples_per_pixel = scale*Fs*colour_time_ms/(1000.0 * width);
   modes[pd_90].samples_per_hsync = scale*Fs*hsync_pulse_ms/1000.0;
   modes[pd_90].max_height = 128;
+  }
+
+  //pd 120
+  {
+  const uint16_t width = 320; //use 320 rather than 640 as an easy way to scale image
+  const float hsync_pulse_ms = 20;
+  const float colour_gap_ms = 2.08;
+  const float colour_time_ms = 121.600;
+  modes[pd_120].width = width;
+  modes[pd_120].samples_per_line = scale*Fs*((colour_time_ms*4)+(colour_gap_ms*1) + hsync_pulse_ms)/1000.0;
+  modes[pd_120].samples_per_colour_line = scale*Fs*(colour_time_ms)/1000.0;
+  modes[pd_120].samples_per_colour_gap = scale*Fs*colour_gap_ms/1000.0;
+  modes[pd_120].samples_per_pixel = scale*Fs*colour_time_ms/(1000.0 * width);
+  modes[pd_120].samples_per_hsync = scale*Fs*hsync_pulse_ms/1000.0;
+  modes[pd_120].max_height = 248;
+  }
+
+  //pd 180
+  {
+  const uint16_t width = 320; //use 320 rather than 640 as an easy way to scale image
+  const float hsync_pulse_ms = 20;
+  const float colour_gap_ms = 2.08;
+  const float colour_time_ms = 183.040;
+  modes[pd_180].width = width;
+  modes[pd_180].samples_per_line = scale*Fs*((colour_time_ms*4)+(colour_gap_ms*1) + hsync_pulse_ms)/1000.0;
+  modes[pd_180].samples_per_colour_line = scale*Fs*(colour_time_ms)/1000.0;
+  modes[pd_180].samples_per_colour_gap = scale*Fs*colour_gap_ms/1000.0;
+  modes[pd_180].samples_per_pixel = scale*Fs*colour_time_ms/(1000.0 * width);
+  modes[pd_180].samples_per_hsync = scale*Fs*hsync_pulse_ms/1000.0;
+  modes[pd_180].max_height = 248;
   }
 
   //SC2120

@@ -24,7 +24,7 @@ def test_audio(filename, display=True):
     smoothed_data = smoothed_data*0.93 + frequencies[n]*0.07
     frequencies[n] = smoothed_data 
 
-  image = np.zeros([266, 330, 3], dtype="int")
+  image = np.zeros([266, 330, 4], dtype="int")
   for frequency in frequencies:
       data = "%i\n"%frequency
       uut.stdin.write(bytes(data, "utf8"))
@@ -36,14 +36,15 @@ def test_audio(filename, display=True):
         image[line, col, colour] = pixel
    
   if display:
-    plt.imshow(image) 
+    plt.imshow(image[:,:, :3]) 
     plt.show() 
 
-test_audio("../test_files/SSTV_sunset_audio.wav")
+#test_audio("../test_files/SSTV_sunset_audio.wav")
 #test_audio("../test_files/test_07.wav")
 #test_audio("../test_files/test.wav")
 #test_audio("../test_files/test_44.wav")
 #test_audio("../test_files/PD90.wav")
+test_audio("../test_files/PD120.wav")
 #test_audio("../test_files/SC2120.wav")
 #test_audio("../test_files/test_s2_25.wav")
 

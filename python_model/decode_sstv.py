@@ -10,7 +10,7 @@ last = 0
 #with open("SSTV_sunset_audio.wav" , "rb") as inf:
 #with open("test.wav" , "rb") as inf:
 #with open("../test_files/test.wav" , "rb") as inf:
-with open("../test_files/PD90.wav" , "rb") as inf:
+with open("../test_files/PD120.wav" , "rb") as inf:
 #with open("test_45.wav" , "rb") as inf:
 #with open("test_1_35.wav" , "rb") as inf:
 
@@ -112,6 +112,30 @@ samples_per_colour_gap = Fs*colour_gap_ms/1000.0
 samples_per_pixel = samples_per_colour_line/width
 samples_per_hsync = Fs*hsync_pulse_ms/1000.0
 modes["pd_90"] = (width, samples_per_line, samples_per_colour_line, samples_per_pixel, samples_per_hsync, samples_per_colour_gap)
+
+"pd 120"
+width = 320 #usually 640, but setting this to 320 instead is an easy way to rescale
+hsync_pulse_ms = 20
+colour_gap_ms = 2.08
+colour_time_ms = 121.6
+samples_per_line = Fs*((colour_time_ms*4)+(colour_gap_ms*1) + hsync_pulse_ms)/1000.0
+samples_per_colour_line = Fs*(colour_time_ms)/1000.0
+samples_per_colour_gap = Fs*colour_gap_ms/1000.0
+samples_per_pixel = samples_per_colour_line/width
+samples_per_hsync = Fs*hsync_pulse_ms/1000.0
+modes["pd_120"] = (width, samples_per_line, samples_per_colour_line, samples_per_pixel, samples_per_hsync, samples_per_colour_gap)
+
+"pd 180"
+width = 320 #usually 640, but setting this to 320 instead is an easy way to rescale
+hsync_pulse_ms = 20
+colour_gap_ms = 2.08
+colour_time_ms = 183.040
+samples_per_line = Fs*((colour_time_ms*4)+(colour_gap_ms*1) + hsync_pulse_ms)/1000.0
+samples_per_colour_line = Fs*(colour_time_ms)/1000.0
+samples_per_colour_gap = Fs*colour_gap_ms/1000.0
+samples_per_pixel = samples_per_colour_line/width
+samples_per_hsync = Fs*hsync_pulse_ms/1000.0
+modes["pd_120"] = (width, samples_per_line, samples_per_colour_line, samples_per_pixel, samples_per_hsync, samples_per_colour_gap)
 
 "SC2120"
 width = 320
@@ -312,7 +336,7 @@ def sample_to_pixel(sample, decode_mode, samples_per_line, samples_per_colour_li
     colour = [1, 2, 0, 3][colour] #scottie colour order is g-b-r, map to r-g-b
     x = int(sample//samples_per_pixel)
 
-  elif decode_mode == "pd_50" or decode_mode == "pd_90":
+  elif decode_mode == "pd_50" or decode_mode == "pd_90" or decode_mode == "pd_120":
 
     sample -= samples_per_hsync
     y = int(sample//samples_per_line)

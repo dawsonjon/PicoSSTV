@@ -11,6 +11,8 @@ enum e_mode
   scottie_s2, 
   pd_50,
   pd_90,
+  pd_120,
+  pd_180,
   sc2_120,
   num_modes
 };

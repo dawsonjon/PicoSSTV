@@ -105,9 +105,21 @@ void loop() {
 
             //convert from 24 bit to 16 bit colour
             uint16_t line_rgb565[320];
+            uint16_t scaled_pixel_y = 0;
 
-            if(mode == pd_50 || mode == pd_90)
+            if(mode == pd_50 || mode == pd_90 || mode == pd_120 || mode == pd_180)
             {
+
+              //rescale imaagesto fit on screen
+              if(mode == pd_120 || mode == pd_180)
+              {
+                scaled_pixel_y = (uint32_t)last_pixel_y * 240 / 496; 
+              }
+              else
+              {
+                scaled_pixel_y = last_pixel_y;
+              }
+
               for(uint16_t x=0; x<320; ++x)
               {
                 int16_t y  = line_rgb[x][0];
@@ -123,7 +135,7 @@ void loop() {
                 b = b<0?0:(b>255?255:b);
                 line_rgb565[x] = display->colour565(r, g, b);
               }
-              display->writeHLine(0, last_pixel_y*2, 320, line_rgb565);
+              display->writeHLine(0, scaled_pixel_y*2, 320, line_rgb565);
               for(uint16_t x=0; x<320; ++x)
               {
                 int16_t y  = line_rgb[x][3];
@@ -139,7 +151,7 @@ void loop() {
                 b = b<0?0:(b>255?255:b);
                 line_rgb565[x] = display->colour565(r, g, b);
               }
-              display->writeHLine(0, last_pixel_y*2 + 1, 320, line_rgb565);
+              display->writeHLine(0, scaled_pixel_y*2 + 1, 320, line_rgb565);
             }
             else
             {
@@ -182,6 +194,14 @@ void loop() {
             else if(mode==pd_90)
             {
               snprintf(buffer, 21, "PD 90: %ux%u", modes[mode].width, last_pixel_y+1);
+            }
+            else if(mode==pd_120)
+            {
+              snprintf(buffer, 21, "PD 120: %ux%u", modes[mode].width, last_pixel_y+1);
+            }
+            else if(mode==pd_180)
+            {
+              snprintf(buffer, 21, "PD 180: %ux%u", modes[mode].width, last_pixel_y+1);
             }
             display->drawString(320-(21*6), 240-8, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK);
             Serial.println(buffer);
