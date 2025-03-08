@@ -68,7 +68,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define MADCTL_MY 0x80  ///< Bottom to top
 #define MADCTL_MX 0x40  ///< Right to left
-#define MADCTL_MV 0x20  ///< Reverse Mode
+#define MADCTL_MV 0x20  ///< Reverse Mode OFF
+#define DINVON 0x21     ///< Reverse Mode ON
 #define MADCTL_ML 0x10  ///< LCD refresh Bottom to top
 #define MADCTL_RGB 0x00 ///< Red-Green-Blue pixel order
 #define MADCTL_BGR 0x08 ///< Blue-Green-Red pixel order
@@ -109,7 +110,7 @@ enum ILI934X_ROTATION
 class ILI934X
 {
 public:
-    ILI934X(spi_inst_t *spi, uint8_t cs, uint8_t dc, uint16_t width = 240, uint16_t height = 320, ILI934X_ROTATION rotation = R0DEG);
+    ILI934X(spi_inst_t *spi, uint8_t cs, uint8_t dc, uint16_t width = 240, uint16_t height = 320, ILI934X_ROTATION rotation = R0DEG, bool invert_display = false); //(ON4ABR)
 
     void init();
     void setRotation(ILI934X_ROTATION rotation, bool invert_colours);
@@ -143,6 +144,7 @@ private:
     uint16_t _init_height;
     uint8_t _init_rotation;
     uint8_t _invert_colours;
+    bool _invert_display;  //(ON4ABR)
 };
 
 #endif //__ILI934X_H__

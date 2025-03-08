@@ -16,6 +16,8 @@
 //
 // License: MIT
 //
+// MODS BY ON4ABR - 2025
+// * Option to invert the display when images ar negative
 
 #include "hardware/spi.h"
 #include "ili934x.h"
@@ -35,8 +37,8 @@
 #define PIN_DC   11
 #define SPI_PORT spi1
 
-#define ROTATION R0DEG
-//#define ROTATION R90DEG
+//#define ROTATION R0DEG
+#define ROTATION R90DEG
 //#define ROTATION R180DEG
 //#define ROTATION R270DEG
 //#define ROTATION MIRRORED0DEG
@@ -44,8 +46,11 @@
 //#define ROTATION MIRRORED180DEG
 //#define ROTATION MIRRORED270DEG
 
-#define INVERT_COLOURS false
-//#define INVERT_COLOURS true
+//#define INVERT_COLOURS false
+#define INVERT_COLOURS true
+
+//#define INVERT_DISPLAY false      // (ON4ABR) Use invert_display true if image is negative
+#define INVERT_DISPLAY true
 
 #define STRETCH true
 //#define STRETCH false
@@ -253,7 +258,7 @@ void configure_display()
   gpio_set_dir(PIN_CS, GPIO_OUT);
   gpio_init(PIN_DC);
   gpio_set_dir(PIN_DC, GPIO_OUT);
-  display = new ILI934X(SPI_PORT, PIN_CS, PIN_DC, 320, 240, R0DEG);
+  display = new ILI934X(SPI_PORT, PIN_CS, PIN_DC, 320, 240, R0DEG, INVERT_DISPLAY);
   display->setRotation(ROTATION, INVERT_COLOURS);
   display->init();
   display->powerOn(true);
