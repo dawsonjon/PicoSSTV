@@ -1,7 +1,7 @@
 //  _  ___  _   _____ _     _                 
 // / |/ _ \/ | |_   _| |__ (_)_ __   __ _ ___ 
 // | | | | | |   | | | '_ \| | '_ \ / _` / __|
-// | | |_| | |   | | | | | | | | | | (_| \__ \
+// | | |_| | |   | | | | | | | | | | (_| \__ \.
 // |_|\___/|_|   |_| |_| |_|_|_| |_|\__, |___/
 //                                  |___/    
 //
@@ -37,6 +37,12 @@
 #define PIN_DC   11
 #define SPI_PORT spi1
 
+//!!Note, can be quite a bit of variation between TFT displays
+//if the display doesn't look right it can be fixed by changing these settings!!
+
+//If the image doesn't fill the display, or is rotated try changing
+//the ROTATION.
+
 //#define ROTATION R0DEG
 #define ROTATION R90DEG
 //#define ROTATION R180DEG
@@ -46,11 +52,17 @@
 //#define ROTATION MIRRORED180DEG
 //#define ROTATION MIRRORED270DEG
 
+//The splash screen should have blue lettering, if you see red lettering 
+//try changing the INVERT_COLOURS setting.
+
 //#define INVERT_COLOURS false
 #define INVERT_COLOURS true
 
-//#define INVERT_DISPLAY false      // (ON4ABR) Use invert_display true if image is negative
-#define INVERT_DISPLAY true
+//The splash screen should have a black background, if you have a white
+//background try changing this setting. Many thans to ON4ABR for adding 
+//this option.
+#define INVERT_DISPLAY false
+//#define INVERT_DISPLAY true
 
 #define STRETCH true
 //#define STRETCH false
