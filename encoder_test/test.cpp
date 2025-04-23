@@ -1,5 +1,5 @@
-#include "bmp_lib.h"
-#include "sstv_encoder.h"
+#include "../sstv_library/bmp_lib.h"
+#include "../sstv_library/sstv_encoder.h"
 #include <cstdio>
 #include <cstdlib>
 
@@ -85,7 +85,7 @@ int main()
   const uint16_t height = 240;
   c_sstv_encoder_fileio sstv_encoder;
   sstv_encoder.open("input.bmp", "output.pcm");
-  sstv_encoder.generate_sstv(scottie, width, height);
+  sstv_encoder.generate_sstv(martin, width, height);
   sstv_encoder.close();
   return 0;
 
