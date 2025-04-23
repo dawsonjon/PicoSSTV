@@ -1,0 +1,3 @@
+g++ -Wall sstv_encoder.cpp bmp_lib.cpp test.cpp -o test
+./test
+play -t s16 -r15k output.pcm
