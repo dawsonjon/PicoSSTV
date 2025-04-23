@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 
 Fs = 15000
 
-run(["g++", "-DSIMULATION=true", "../sstv_decoder/decode_sstv.cpp", "../sstv_decoder/cordic.cpp", "../sstv_decoder/half_band_filter2.cpp", "sstv_decoder/test_decode_sstv_iq.cpp", "-o", "test_sstv_iq"])
+run(["g++", "-DSIMULATION=true", "../sstv_library/decode_sstv.cpp", "../sstv_library/cordic.cpp", "../sstv_library/half_band_filter2.cpp", "test_decode_sstv_iq.cpp", "-o", "test_sstv_iq"])
 uut = Popen("./test_sstv_iq", stdin=PIPE, stdout=PIPE)
 
 def test_audio(filename, display=True):

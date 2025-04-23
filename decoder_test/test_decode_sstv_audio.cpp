@@ -1,7 +1,7 @@
 #include <cstdint>
 #include <iostream>
 
-#include "../decode_sstv.h"
+#include "../sstv_library/decode_sstv.h"
 
 
 int main()
