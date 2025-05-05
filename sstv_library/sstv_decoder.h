@@ -51,8 +51,9 @@ class c_sstv_decoder
   float m_Fs;
   uint32_t m_scale;
   uint32_t sync_counter = 0;
-  uint16_t y_pixel = 0;
+  //uint16_t y_pixel = 0;
   uint16_t last_x = 0;
+  uint16_t last_y = 0;
   uint32_t image_sample = 0;
   uint16_t last_sample = 0;
   uint32_t last_hsync_sample = 0;
@@ -75,18 +76,30 @@ class c_sstv_decoder
   s_sstv_mode modes[num_modes];
   bool m_auto_slant_correction;
   uint32_t m_timeout;
+  bool image_complete_flag = false;
+
+  void decode_sample(uint16_t sample, uint16_t &pixel_y, uint16_t &pixel_x, uint8_t &pixel_colour, uint8_t &pixel, bool &pixel_complete, bool &line_complete, bool &image_complete);
+
+
+  //override one of these hardware dependent functions.
+  /////////////////////////////////////////////////////////////////////////////
+
+  //The decoder can work with frequency data, IQ data or (real, mono) audio samples.
+  //override one of these deneding on what you need.
+
+  virtual int16_t get_audio_sample() = 0;
+  virtual void get_iq_sample(int16_t &i, int16_t &q);
+  virtual uint16_t get_frequency_sample();
+
+  //Override this function to output a line of image
+  virtual void image_write_line(uint16_t line_rgb565[], uint16_t y, uint16_t width, uint16_t height) = 0;
+  virtual void image_open(const char* filename, uint16_t width, uint16_t height) = 0;
+  virtual void image_close() = 0;
 
   public:
   c_sstv_decoder(float Fs);
-  bool decode(uint16_t sample, uint16_t &line, uint16_t &col, uint8_t &colour, uint8_t &pixel, e_state &debug_state);
-  bool decode_iq(int16_t sample_i, int16_t sample_q, uint16_t &pixel_y, uint16_t &pixel_x, uint8_t &pixel_colour, uint8_t &pixel, int16_t &frequency);
-  bool decode_audio(int16_t audio, uint16_t &pixel_y, uint16_t &pixel_x, uint8_t &pixel_colour, uint8_t &pixel, int16_t &frequency);
-  void set_timeout_seconds(uint8_t timeout);
-  void set_auto_slant_correction(bool enable);
-  e_mode get_mode();
-  s_sstv_mode * get_modes();
+  void decode_image(const char* image_filename, uint8_t timeout_s, bool slant_correction);
 
-  
 };
 
 #endif

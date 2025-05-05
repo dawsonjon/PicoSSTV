@@ -45,7 +45,7 @@ void setup()
   SPI.setTX(_MOSI);
   SPI.setSCK(_SCK);
   SPI.setCS(_CS);
-  SPI.begin(true);
+  //SPI.begin();
 
   pinMode(LED_BUILTIN, OUTPUT);
 
@@ -72,7 +72,7 @@ void setup()
   Serial.print("\nInitializing SD card ... ");
   Serial.print("CS = "); Serial.println(_CS);
 
-  if ( !sd.begin(_CS, SD_SCK_MHZ(50)) ) {
+  if ( !sd.begin(_CS, SD_SCK_MHZ(1)) ) {
     Serial.println("initialization failed. Things to check:");
     Serial.println("* is a card inserted?");
     Serial.println("* is your wiring correct?");

@@ -38,7 +38,7 @@ void ADCAudio::begin(const uint8_t audio_pin, const uint32_t audio_sample_rate)
   adc_run(true);
 
   // pre-fill ping buffer
-  dma_channel_configure(adc_dma, &cfg, ping, &adc_hw->fifo, 1024, true);
+  dma_channel_configure(adc_dma, &cfg, ping, &adc_hw->fifo, 4096, true);
   ping_running = true;
 }
 
@@ -48,14 +48,14 @@ void ADCAudio ::input_samples(uint16_t *&samples) {
     // wait for ping transfer to complete
     dma_channel_wait_for_finish_blocking(adc_dma);
     // start a transfer into pong buffer for next time
-    dma_channel_configure(adc_dma, &cfg, pong, &adc_hw->fifo, 1024, true);
+    dma_channel_configure(adc_dma, &cfg, pong, &adc_hw->fifo, 4096, true);
     samples = ping; // return ping buffer
     ping_running = false;
   } else {
     // wait for ping transfer to complete
     dma_channel_wait_for_finish_blocking(adc_dma);
     // start a transfer into pong buffer for next time
-    dma_channel_configure(adc_dma, &cfg, ping, &adc_hw->fifo, 1024, true);
+    dma_channel_configure(adc_dma, &cfg, ping, &adc_hw->fifo, 4096, true);
     samples = pong; // return pong buffer
     ping_running = true;
   }

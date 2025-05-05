@@ -18,8 +18,8 @@ class ADCAudio
     private:
     int adc_dma;
     dma_channel_config cfg;
-    uint16_t ping[1024];
-    uint16_t pong[1024];
+    uint16_t ping[4096];
+    uint16_t pong[4096];
     bool ping_running = true;
 };
 

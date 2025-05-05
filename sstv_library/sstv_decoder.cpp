@@ -1,7 +1,7 @@
 #include <cstdint>
 #include <algorithm>
 #include <cmath>
-#include "decode_sstv.h"
+#include "sstv_decoder.h"
 #include "cordic.h"
 
 //from the sample number work out the colour and x/y coordinates
@@ -220,7 +220,7 @@ c_sstv_decoder :: c_sstv_decoder(float Fs)
   modes[pd_50].samples_per_colour_gap = scale*Fs*colour_gap_ms/1000.0;
   modes[pd_50].samples_per_pixel = scale*Fs*colour_time_ms/(1000.0 * width);
   modes[pd_50].samples_per_hsync = scale*Fs*hsync_pulse_ms/1000.0;
-  modes[pd_50].max_height = 128;
+  modes[pd_50].max_height = 120;
   }
 
   //pd 90
@@ -235,12 +235,12 @@ c_sstv_decoder :: c_sstv_decoder(float Fs)
   modes[pd_90].samples_per_colour_gap = scale*Fs*colour_gap_ms/1000.0;
   modes[pd_90].samples_per_pixel = scale*Fs*colour_time_ms/(1000.0 * width);
   modes[pd_90].samples_per_hsync = scale*Fs*hsync_pulse_ms/1000.0;
-  modes[pd_90].max_height = 128;
+  modes[pd_90].max_height = 120;
   }
 
   //pd 120
   {
-  const uint16_t width = 320; //use 320 rather than 640 as an easy way to scale image
+  const uint16_t width = 640;
   const float hsync_pulse_ms = 20;
   const float colour_gap_ms = 2.08;
   const float colour_time_ms = 121.600;
@@ -250,12 +250,12 @@ c_sstv_decoder :: c_sstv_decoder(float Fs)
   modes[pd_120].samples_per_colour_gap = scale*Fs*colour_gap_ms/1000.0;
   modes[pd_120].samples_per_pixel = scale*Fs*colour_time_ms/(1000.0 * width);
   modes[pd_120].samples_per_hsync = scale*Fs*hsync_pulse_ms/1000.0;
-  modes[pd_120].max_height = 248;
+  modes[pd_120].max_height = 240;
   }
 
   //pd 180
   {
-  const uint16_t width = 320; //use 320 rather than 640 as an easy way to scale image
+  const uint16_t width = 640;
   const float hsync_pulse_ms = 20;
   const float colour_gap_ms = 2.08;
   const float colour_time_ms = 183.040;
@@ -265,7 +265,7 @@ c_sstv_decoder :: c_sstv_decoder(float Fs)
   modes[pd_180].samples_per_colour_gap = scale*Fs*colour_gap_ms/1000.0;
   modes[pd_180].samples_per_pixel = scale*Fs*colour_time_ms/(1000.0 * width);
   modes[pd_180].samples_per_hsync = scale*Fs*hsync_pulse_ms/1000.0;
-  modes[pd_180].max_height = 248;
+  modes[pd_180].max_height = 240;
   }
 
   //SC2120
@@ -286,8 +286,41 @@ c_sstv_decoder :: c_sstv_decoder(float Fs)
   cordic_init();
 }
 
-bool c_sstv_decoder :: decode_audio(int16_t audio, uint16_t &pixel_y, uint16_t &pixel_x, uint8_t &pixel_colour, uint8_t &pixel, int16_t &frequency)
+/*
+int16_t c_sstv_decoder :: get_audio_sample()
 {
+    static uint16_t *samples;
+    static uint16_t sample_number = 4096;
+
+
+    if(sample_number == 4096)
+    {
+      //fetch a new block of 4096 samples
+      adc_audio.input_samples(samples);
+
+      //decimate down to 1024 samples
+      for(uint16_t idx=0; idx<1024; idx++)
+      {
+        samples[idx] = samples[idx*4] + samples[idx*4+1] + samples[idx*4+2] + samples[idx*4+3];
+      }
+
+      sample_number = 0;
+    }
+
+    //remove DC offset
+    int16_t sample = samples[sample_number++];
+    dc = dc + sample/2;
+    sample -= dc;
+
+    return sample;
+}
+*/
+
+//return a single sample in i/q format
+void c_sstv_decoder :: get_iq_sample(int16_t &i, int16_t &q)
+{
+    int16_t audio = get_audio_sample();
+
     // shift frequency by +FS/4
     //       __|__
     //   ___/  |  \___
@@ -295,7 +328,7 @@ bool c_sstv_decoder :: decode_audio(int16_t audio, uint16_t &pixel_y, uint16_t &
     //   <-----+----->
 
     //        | ____
-    //  ______|/    \
+    //  ______|/    \.
     //        |
     //  <-----+----->
 
@@ -328,45 +361,50 @@ bool c_sstv_decoder :: decode_audio(int16_t audio, uint16_t &pixel_y, uint16_t &
 
     const int16_t sample_i[4] = {(int16_t)-qq, (int16_t)-ii, qq, ii};
     const int16_t sample_q[4] = {ii, (int16_t)-qq, (int16_t)-ii, qq};
-    int16_t i = sample_i[ssb_phase];
-    int16_t q = sample_q[ssb_phase];
+    i = sample_i[ssb_phase];
+    q = sample_q[ssb_phase];
 
-    return decode_iq(i, q, pixel_y, pixel_x, pixel_colour, pixel, frequency);
 }
 
-
-bool c_sstv_decoder :: decode_iq(int16_t sample_i, int16_t sample_q, uint16_t &pixel_y, uint16_t &pixel_x, uint8_t &pixel_colour, uint8_t &pixel, int16_t &smoothed_sample_16)
+//return the frequency of a single sample
+uint16_t c_sstv_decoder :: get_frequency_sample()
 {
 
   uint16_t magnitude;
   int16_t phase;
+  int16_t sample_i;
+  int16_t sample_q;
 
+  //convert to magnitude/phase representation
+  get_iq_sample(sample_i, sample_q);
   cordic_rectangular_to_polar(sample_i, sample_q, magnitude, phase);
+
+  //convert phase to frequency in Hz
   frequency = last_phase-phase;
   last_phase = phase;
-
   int16_t sample = (int32_t)frequency*15000>>16;
 
-
+  //apply a smoothing filter
   static uint32_t smoothed_sample = 0;
   smoothed_sample = ((smoothed_sample << 3) + sample - smoothed_sample) >> 3;
-  smoothed_sample_16 = std::min(std::max(smoothed_sample, (uint32_t)1000u), (uint32_t)2500u);
+  int16_t smoothed_sample_16 = std::min(std::max(smoothed_sample, (uint32_t)1000u), (uint32_t)2500u);
 
-  e_state debug_state;
-  return decode(smoothed_sample_16, pixel_y, pixel_x, pixel_colour, pixel, debug_state);
-
+  return smoothed_sample_16;
 }
 
-bool c_sstv_decoder :: decode(uint16_t sample, uint16_t &pixel_y, uint16_t &pixel_x, uint8_t &pixel_colour, uint8_t &pixel, e_state &debug_state)
+void c_sstv_decoder :: decode_sample(uint16_t sample, uint16_t &pixel_y, uint16_t &pixel_x, uint8_t &pixel_colour, uint8_t &pixel, bool &pixel_complete, bool &line_complete, bool &image_complete)
 {
 
+  pixel_complete = false;
+  line_complete = false;
+  image_complete = false;
 
   //detect scan syncs
   bool sync_found = false;
   uint32_t line_length = 0u;
   if(sync_state == detect)
   {
-    if( sample < 1300 && last_sample >= 1300)
+    if( sample < 1400 && last_sample >= 1400)
     {
       sync_state = confirm;
       sync_counter = 0;
@@ -374,7 +412,7 @@ bool c_sstv_decoder :: decode(uint16_t sample, uint16_t &pixel_y, uint16_t &pixe
   }
   else if(sync_state == confirm)
   {
-    if( sample < 1300)
+    if( sample < 1400)
     {
       sync_counter++;
     }
@@ -383,7 +421,7 @@ bool c_sstv_decoder :: decode(uint16_t sample, uint16_t &pixel_y, uint16_t &pixe
       sync_counter--;
     }
 
-    if(sync_counter == 10)
+    if(sync_counter == 40)
     {
       sync_found = true;
       line_length = sample_number-last_hsync_sample;
@@ -393,7 +431,6 @@ bool c_sstv_decoder :: decode(uint16_t sample, uint16_t &pixel_y, uint16_t &pixe
   }
 
 
-  bool pixel_complete = false;
   switch(state)
   {
 
@@ -459,7 +496,8 @@ bool c_sstv_decoder :: decode(uint16_t sample, uint16_t &pixel_y, uint16_t &pixe
         //output pixel
         pixel_complete = true;
         pixel = pixel_accumulator/pixel_n;
-        pixel_y = y;
+        line_complete = y > last_y;
+        pixel_y = last_y;
         pixel_x = last_x;
         pixel_colour = colour;
 
@@ -467,6 +505,7 @@ bool c_sstv_decoder :: decode(uint16_t sample, uint16_t &pixel_y, uint16_t &pixe
         pixel_accumulator = 0;
         pixel_n = 0;
         last_x = x;
+        last_y = y;
       }
 
       //end of image
@@ -474,6 +513,7 @@ bool c_sstv_decoder :: decode(uint16_t sample, uint16_t &pixel_y, uint16_t &pixe
       {
         state = detect_sync;
         sync_counter = 0;
+        image_complete = true;
         break;
       }
 
@@ -517,25 +557,97 @@ bool c_sstv_decoder :: decode(uint16_t sample, uint16_t &pixel_y, uint16_t &pixe
 
   sample_number++;
   last_sample = sample;
-  debug_state = state;
-  return pixel_complete;
 
 }
 
-e_mode c_sstv_decoder :: get_mode()
+static uint16_t rgb_to_rgb565(uint8_t r, uint8_t g, uint8_t b)
 {
-  return decode_mode;  
+    return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | ((b & 0xF8) >> 3);
 }
 
-s_sstv_mode * c_sstv_decoder :: get_modes()
+static uint16_t ycrcb_to_rgb565(int16_t y, int16_t cr, int16_t cb)
 {
-  return &modes[0];
+    cr = cr - 128;
+    cb = cb - 128;
+    int16_t r = y + 45 * cr / 32;
+    int16_t g = y - (11 * cb + 23 * cr) / 32;
+    int16_t b = y + 113 * cb / 64;
+    r = r<0?0:(r>255?255:r);
+    g = g<0?0:(g>255?255:g);
+    b = b<0?0:(b>255?255:b);
+    return rgb_to_rgb565(r, g, b);
 }
-void c_sstv_decoder :: set_timeout_seconds(uint8_t timeout)
+
+void c_sstv_decoder :: decode_image(const char* image_filename, uint8_t timeout_s, bool slant_correction)
 {
-  m_timeout = timeout * m_Fs;
-}
-void c_sstv_decoder :: set_auto_slant_correction(bool enable)
-{
-  m_auto_slant_correction = enable;
+  m_timeout = timeout_s * m_Fs;
+  m_auto_slant_correction = slant_correction;
+
+  uint8_t line[640][4]; //array to contain seperate colour components of each decoded line
+  bool image_open_flag = false;
+
+  while(1)
+  {
+      uint16_t pixel_x, pixel_y;
+      uint8_t pixel_colour;
+      uint8_t pixel;
+      bool pixel_complete, line_complete, image_complete;
+
+      int16_t sample = get_frequency_sample();
+      decode_sample(sample, pixel_y, pixel_x, pixel_colour, pixel, pixel_complete, line_complete, image_complete);
+
+      if(pixel_complete)
+      {
+        if(pixel_x < 640 && pixel_colour < 4) line[pixel_x][pixel_colour] = pixel;
+      }
+
+      if(line_complete)
+      {
+        uint16_t line_rgb565[640]; //array to hold one line of image in rgb565 format
+
+        if(decode_mode == pd_50 || decode_mode == pd_90 || decode_mode == pd_120 || decode_mode == pd_180)
+        {
+            if(!image_open_flag) image_open(image_filename, modes[decode_mode].width, modes[decode_mode].max_height*2);
+            image_open_flag = true;
+
+            for(uint16_t x=0; x<modes[decode_mode].width; ++x)
+            {
+              int16_t y  = line[x][0];
+              int16_t cr = line[x][1];
+              int16_t cb = line[x][2];
+              line_rgb565[x] = ycrcb_to_rgb565(y, cr, cb);
+            }
+            image_write_line(line_rgb565, pixel_y*2, modes[decode_mode].width, modes[decode_mode].max_height);
+
+            for(uint16_t x=0; x<modes[decode_mode].width; ++x)
+            {
+              int16_t y  = line[x][3];
+              int16_t cr = line[x][1];
+              int16_t cb = line[x][2];
+              line_rgb565[x] = ycrcb_to_rgb565(y, cr, cb);
+            }
+            image_write_line(line_rgb565, pixel_y*2+1, modes[decode_mode].width, modes[decode_mode].max_height);
+        }
+        else
+        {
+            if(!image_open_flag) image_open(image_filename, modes[decode_mode].width, modes[decode_mode].max_height);
+            image_open_flag = true;
+
+            for(uint16_t x=0; x<modes[decode_mode].width; ++x)
+            {
+              int16_t r = line[x][0];
+              int16_t g = line[x][1];
+              int16_t b = line[x][2];
+              line_rgb565[x] = rgb_to_rgb565(r, g, b);
+            }
+            image_write_line(line_rgb565, pixel_y*2+1, modes[decode_mode].width, modes[decode_mode].max_height);
+        }
+      }
+
+      if(image_complete)
+      {
+        image_close();
+        return;
+      }
+   }
 }

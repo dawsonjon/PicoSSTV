@@ -3,13 +3,13 @@
 
 #include <cstdint>
 
-enum e_sstv_tx_mode {martin, scottie};
+enum e_sstv_tx_mode {martin, scottie, pd};
 
 class c_sstv_encoder
 {
 
   private :
-  uint8_t m_Fs_kHz;
+  double m_Fs_Hz;
   uint32_t m_phase;
   int16_t m_sin_table[1024];
   uint32_t m_residue_f16;
@@ -21,13 +21,14 @@ class c_sstv_encoder
   uint16_t get_pixel(uint16_t width, uint16_t height, uint16_t y, uint16_t x, uint8_t colour);
   void generate_scottie(uint16_t width, uint16_t height);
   void generate_martin(uint16_t width, uint16_t height);
+  void generate_pd(uint16_t width, uint16_t height);
 
   //override these application specific functions
   virtual void output_sample(int16_t sample) = 0;
   virtual uint8_t get_image_pixel(uint16_t width, uint16_t height, uint16_t y, uint16_t x, uint8_t colour) = 0;
 
   public:
-  c_sstv_encoder();
+  c_sstv_encoder(double fs_Hz);
   void generate_sstv(e_sstv_tx_mode, uint16_t width, uint16_t height);
 
 };
