@@ -42,7 +42,7 @@ void c_sstv_decoder :: sample_to_pixel(uint16_t &x, uint16_t &y, uint8_t &colour
 
     //hsync is between blue and red component (not at end of line)
     //for red component, subtract the length of the scan-line
-    if( image_sample < 2*modes[decode_mode].samples_per_colour_line)
+    if( image_sample < static_cast<int32_t>(2*modes[decode_mode].samples_per_colour_line))
     {
       colour = image_sample/modes[decode_mode].samples_per_colour_line;
       image_sample -= colour*modes[decode_mode].samples_per_colour_line;
@@ -90,18 +90,18 @@ void c_sstv_decoder :: sample_to_pixel(uint16_t &x, uint16_t &y, uint8_t &colour
     y = image_sample/mean_samples_per_line;
     image_sample -= y*mean_samples_per_line;
 
-    if( image_sample < modes[decode_mode].samples_per_colour_line )
+    if( image_sample < static_cast<int32_t>(modes[decode_mode].samples_per_colour_line) )
     {
       colour = 0;
       x = image_sample/modes[decode_mode].samples_per_pixel;
     }
-    else if( image_sample < 2*modes[decode_mode].samples_per_colour_line )
+    else if( image_sample < static_cast<int32_t>(2*modes[decode_mode].samples_per_colour_line) )
     {
       colour = 1;
       image_sample -= modes[decode_mode].samples_per_colour_line;
       x = image_sample/modes[decode_mode].samples_per_pixel;
     }
-    else if( image_sample < 3*modes[decode_mode].samples_per_colour_line )
+    else if( image_sample < static_cast<int32_t>(3*modes[decode_mode].samples_per_colour_line) )
     {
       colour = 2;
       image_sample -= 2*modes[decode_mode].samples_per_colour_line;

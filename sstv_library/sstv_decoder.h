@@ -28,7 +28,6 @@ enum e_state
   detect_sync,
   confirm_sync,
   decode_line,
-  wait,
 };
 
 struct s_sstv_mode 
