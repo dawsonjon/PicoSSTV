@@ -1,3 +1,16 @@
+//  _  ___  _   _____ _     _
+// / |/ _ \/ | |_   _| |__ (_)_ __   __ _ ___
+// | | | | | |   | | | '_ \| | '_ \ / _` / __|
+// | | |_| | |   | | | | | | | | | | (_| \__ \.
+// |_|\___/|_|   |_| |_| |_|_|_| |_|\__, |___/
+//                                  |___/
+//
+// Copyright (c) Jonathan P Dawson 2025
+// filename: sstv_decoder.h
+// description: class to decode sstv from audio
+// License: MIT
+//
+
 #ifndef __SSTV_DECODER_H__
 #define __SSTV_DECODER_H__
 
@@ -39,6 +52,7 @@ struct s_sstv_mode
   uint32_t samples_per_colour_gap;
   uint32_t samples_per_pixel;
   uint32_t samples_per_hsync;
+  char const * mode_string;
 };
 
 class c_sstv_decoder
@@ -91,8 +105,8 @@ class c_sstv_decoder
   virtual uint16_t get_frequency_sample();
 
   //Override this function to output a line of image
-  virtual void image_write_line(uint16_t line_rgb565[], uint16_t y, uint16_t width, uint16_t height) = 0;
-  virtual void image_open(const char* filename, uint16_t width, uint16_t height) = 0;
+  virtual void image_write_line(uint16_t line_rgb565[], uint16_t y, uint16_t width, uint16_t height, const char* mode_string) = 0;
+  virtual void image_open(const char* filename, uint16_t width, uint16_t height, const char* mode_string) = 0;
   virtual void image_close() = 0;
 
   public:

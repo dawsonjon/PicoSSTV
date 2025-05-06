@@ -1,3 +1,16 @@
+//  _  ___  _   _____ _     _
+// / |/ _ \/ | |_   _| |__ (_)_ __   __ _ ___
+// | | | | | |   | | | '_ \| | '_ \ / _` / __|
+// | | |_| | |   | | | | | | | | | | (_| \__ \.
+// |_|\___/|_|   |_| |_| |_|_|_| |_|\__, |___/
+//                                  |___/
+//
+// Copyright (c) Jonathan P Dawson 2025
+// filename: sstv_decoder.cpp
+// description: class to decode sstv from audio
+// License: MIT
+//
+
 #include <cstdint>
 #include <algorithm>
 #include <cmath>
@@ -161,6 +174,7 @@ c_sstv_decoder :: c_sstv_decoder(float Fs)
   modes[martin_m1].samples_per_pixel = scale*Fs*colour_time_ms/(1000.0 * width);
   modes[martin_m1].samples_per_hsync = scale*Fs*hsync_pulse_ms/1000.0;
   modes[martin_m1].max_height = 256;
+  modes[martin_m1].mode_string = "Martin M1";
   }
 
   //martin m2
@@ -176,6 +190,7 @@ c_sstv_decoder :: c_sstv_decoder(float Fs)
   modes[martin_m2].samples_per_pixel = scale*Fs*colour_time_ms/(1000.0 * width);
   modes[martin_m2].samples_per_hsync = scale*Fs*hsync_pulse_ms/1000.0;
   modes[martin_m2].max_height = 256;
+  modes[martin_m2].mode_string = "Martin M2";
   }
 
   //scottie s1
@@ -191,6 +206,7 @@ c_sstv_decoder :: c_sstv_decoder(float Fs)
   modes[scottie_s1].samples_per_pixel = scale*Fs*colour_time_ms/(1000.0 * width);
   modes[scottie_s1].samples_per_hsync = scale*Fs*hsync_pulse_ms/1000.0;
   modes[scottie_s1].max_height = 256;
+  modes[scottie_s1].mode_string = "Scottie S1";
   }
 
   //scottie s2
@@ -206,6 +222,7 @@ c_sstv_decoder :: c_sstv_decoder(float Fs)
   modes[scottie_s2].samples_per_pixel = scale*Fs*colour_time_ms/(1000.0 * width);
   modes[scottie_s2].samples_per_hsync = scale*Fs*hsync_pulse_ms/1000.0;
   modes[scottie_s2].max_height = 256;
+  modes[scottie_s2].mode_string = "Scottie S2";
   }
 
   //pd 50
@@ -220,7 +237,8 @@ c_sstv_decoder :: c_sstv_decoder(float Fs)
   modes[pd_50].samples_per_colour_gap = scale*Fs*colour_gap_ms/1000.0;
   modes[pd_50].samples_per_pixel = scale*Fs*colour_time_ms/(1000.0 * width);
   modes[pd_50].samples_per_hsync = scale*Fs*hsync_pulse_ms/1000.0;
-  modes[pd_50].max_height = 120;
+  modes[pd_50].max_height = 128;
+  modes[pd_50].mode_string = "PD 50";
   }
 
   //pd 90
@@ -235,7 +253,8 @@ c_sstv_decoder :: c_sstv_decoder(float Fs)
   modes[pd_90].samples_per_colour_gap = scale*Fs*colour_gap_ms/1000.0;
   modes[pd_90].samples_per_pixel = scale*Fs*colour_time_ms/(1000.0 * width);
   modes[pd_90].samples_per_hsync = scale*Fs*hsync_pulse_ms/1000.0;
-  modes[pd_90].max_height = 120;
+  modes[pd_90].max_height = 128;
+  modes[pd_90].mode_string = "PD 90";
   }
 
   //pd 120
@@ -250,7 +269,8 @@ c_sstv_decoder :: c_sstv_decoder(float Fs)
   modes[pd_120].samples_per_colour_gap = scale*Fs*colour_gap_ms/1000.0;
   modes[pd_120].samples_per_pixel = scale*Fs*colour_time_ms/(1000.0 * width);
   modes[pd_120].samples_per_hsync = scale*Fs*hsync_pulse_ms/1000.0;
-  modes[pd_120].max_height = 240;
+  modes[pd_120].max_height = 248;
+  modes[pd_120].mode_string = "PD 120";
   }
 
   //pd 180
@@ -265,7 +285,8 @@ c_sstv_decoder :: c_sstv_decoder(float Fs)
   modes[pd_180].samples_per_colour_gap = scale*Fs*colour_gap_ms/1000.0;
   modes[pd_180].samples_per_pixel = scale*Fs*colour_time_ms/(1000.0 * width);
   modes[pd_180].samples_per_hsync = scale*Fs*hsync_pulse_ms/1000.0;
-  modes[pd_180].max_height = 240;
+  modes[pd_180].max_height = 248;
+  modes[pd_180].mode_string = "PD 180";
   }
 
   //SC2120
@@ -281,45 +302,17 @@ c_sstv_decoder :: c_sstv_decoder(float Fs)
   modes[sc2_120].samples_per_pixel = scale*Fs*colour_time_ms/(1000.0 * width);
   modes[sc2_120].samples_per_hsync = m_scale*Fs*hsync_pulse_ms/1000.0;
   modes[sc2_120].max_height = 256;
+  modes[sc2_120].mode_string = "SC2 120";
   }
 
   cordic_init();
 }
 
-/*
-int16_t c_sstv_decoder :: get_audio_sample()
-{
-    static uint16_t *samples;
-    static uint16_t sample_number = 4096;
-
-
-    if(sample_number == 4096)
-    {
-      //fetch a new block of 4096 samples
-      adc_audio.input_samples(samples);
-
-      //decimate down to 1024 samples
-      for(uint16_t idx=0; idx<1024; idx++)
-      {
-        samples[idx] = samples[idx*4] + samples[idx*4+1] + samples[idx*4+2] + samples[idx*4+3];
-      }
-
-      sample_number = 0;
-    }
-
-    //remove DC offset
-    int16_t sample = samples[sample_number++];
-    dc = dc + sample/2;
-    sample -= dc;
-
-    return sample;
-}
-*/
-
 //return a single sample in i/q format
 void c_sstv_decoder :: get_iq_sample(int16_t &i, int16_t &q)
 {
     int16_t audio = get_audio_sample();
+  //Serial.println(audio);
 
     // shift frequency by +FS/4
     //       __|__
@@ -394,6 +387,8 @@ uint16_t c_sstv_decoder :: get_frequency_sample()
 
 void c_sstv_decoder :: decode_sample(uint16_t sample, uint16_t &pixel_y, uint16_t &pixel_x, uint8_t &pixel_colour, uint8_t &pixel, bool &pixel_complete, bool &line_complete, bool &image_complete)
 {
+
+  //Serial.println(sample);
 
   pixel_complete = false;
   line_complete = false;
@@ -607,7 +602,7 @@ void c_sstv_decoder :: decode_image(const char* image_filename, uint8_t timeout_
 
         if(decode_mode == pd_50 || decode_mode == pd_90 || decode_mode == pd_120 || decode_mode == pd_180)
         {
-            if(!image_open_flag) image_open(image_filename, modes[decode_mode].width, modes[decode_mode].max_height*2);
+            if(!image_open_flag) image_open(image_filename, modes[decode_mode].width, modes[decode_mode].max_height*2, modes[decode_mode].mode_string);
             image_open_flag = true;
 
             for(uint16_t x=0; x<modes[decode_mode].width; ++x)
@@ -617,7 +612,7 @@ void c_sstv_decoder :: decode_image(const char* image_filename, uint8_t timeout_
               int16_t cb = line[x][2];
               line_rgb565[x] = ycrcb_to_rgb565(y, cr, cb);
             }
-            image_write_line(line_rgb565, pixel_y*2, modes[decode_mode].width, modes[decode_mode].max_height);
+            image_write_line(line_rgb565, pixel_y*2, modes[decode_mode].width, modes[decode_mode].max_height*2, modes[decode_mode].mode_string);
 
             for(uint16_t x=0; x<modes[decode_mode].width; ++x)
             {
@@ -626,11 +621,11 @@ void c_sstv_decoder :: decode_image(const char* image_filename, uint8_t timeout_
               int16_t cb = line[x][2];
               line_rgb565[x] = ycrcb_to_rgb565(y, cr, cb);
             }
-            image_write_line(line_rgb565, pixel_y*2+1, modes[decode_mode].width, modes[decode_mode].max_height);
+            image_write_line(line_rgb565, pixel_y*2+1, modes[decode_mode].width, modes[decode_mode].max_height*2, modes[decode_mode].mode_string);
         }
         else
         {
-            if(!image_open_flag) image_open(image_filename, modes[decode_mode].width, modes[decode_mode].max_height);
+            if(!image_open_flag) image_open(image_filename, modes[decode_mode].width, modes[decode_mode].max_height, modes[decode_mode].mode_string);
             image_open_flag = true;
 
             for(uint16_t x=0; x<modes[decode_mode].width; ++x)
@@ -640,7 +635,7 @@ void c_sstv_decoder :: decode_image(const char* image_filename, uint8_t timeout_
               int16_t b = line[x][2];
               line_rgb565[x] = rgb_to_rgb565(r, g, b);
             }
-            image_write_line(line_rgb565, pixel_y*2+1, modes[decode_mode].width, modes[decode_mode].max_height);
+            image_write_line(line_rgb565, pixel_y, modes[decode_mode].width, modes[decode_mode].max_height, modes[decode_mode].mode_string);
         }
       }
 

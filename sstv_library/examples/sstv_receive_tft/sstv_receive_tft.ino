@@ -64,9 +64,6 @@
 #define INVERT_DISPLAY false
 //#define INVERT_DISPLAY true
 
-#define STRETCH true
-//#define STRETCH false
-
 #define ENABLE_SLANT_CORRECTION true
 //#define ENABLE_SLANT_CORRECTION false
 
@@ -77,181 +74,98 @@
 
 ILI934X *display;
 
+
+//c_sstv_decoder provides a reusable SSTV decoder
+//We need to override some hardware specific functions to make it work with
+//ADC audio input and TFT image display
+class c_sstv_decoder_fileio : public c_sstv_decoder
+{
+  ADCAudio adc_audio;
+  uint16_t row_number = 0;
+  const uint16_t display_width = 320;
+  const uint16_t display_height = 240 - 10; //allow space for status bar
+
+  //override the get_audio_sample function to read ADC audio
+  int16_t get_audio_sample()
+  {
+    static int16_t *samples;
+    static uint16_t sample_number = 1024;
+
+    //if we reach the end of a block request a new one
+    if(sample_number == 1024)
+    {
+      //fetch a new block of 1024 samples
+      samples = adc_audio.input_samples();
+      sample_number = 0;
+    }
+
+    //output the next sample in the block
+    return samples[sample_number++];
+  }
+
+  //override the image_write_line function to output images to a TFT display
+  void image_write_line(uint16_t line_rgb565[], uint16_t y, uint16_t width, uint16_t height, const char* mode_string)
+  {
+
+    //scale image to fit TFT size
+    uint16_t scaled_row[display_width];
+    uint16_t pixel_number = 0;
+    for(uint16_t x=0; x<width; x++)
+    {
+        uint16_t scaled_x = static_cast<uint32_t>(x) * display_width / width;
+        while(pixel_number < scaled_x)
+        {
+          //display expects byteswapped data
+          scaled_row[pixel_number] = ((line_rgb565[x] & 0xff) << 8) | ((line_rgb565[x] & 0xff00) >> 8);
+          pixel_number++;
+        }
+    }
+
+    uint32_t scaled_y = static_cast<uint32_t>(y) * display_height / height;
+    while(row_number < scaled_y)
+    {
+      display->writeHLine(0, row_number, display_width, scaled_row);
+      row_number++;
+    }
+
+    //update progress
+    display->fillRect(0, display_height, 10, display_width, COLOUR_BLACK);
+    char buffer[21];
+    snprintf(buffer, 21, "%10s: %ux%u", mode_string, width, y+1);
+    display->drawString(0, display_height+2, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK);
+    Serial.println(buffer);
+
+  }
+
+  //These functions don't need to do anything when accessing a TFT display
+  void image_open(const char* bmp_file_name, uint16_t width, uint16_t height, const char* mode_string){row_number = 0;}
+  void image_close(){row_number = 0;}
+
+  public:
+
+  void start(){adc_audio.begin(28, 15000);}
+  void stop(){adc_audio.end();}
+  c_sstv_decoder_fileio(float fs) : c_sstv_decoder{fs}{}
+
+};
+
 void setup() {
+  Serial.begin(115200);
+  while (!Serial) delay(1);  // wait for serial port to connect.
   configure_display();
   Serial.println("Pico SSTV Copyright (C) Jonathan P Dawson 2024");
   Serial.println("github: https://github.com/dawsonjon/101Things");
   Serial.println("docs: 101-things.readthedocs.io");
 }
 
-
 void loop() {
-  ADCAudio adc_audio;
-  adc_audio.begin(28, 15000*4);
-  c_sstv_decoder sstv_decoder(15000);
-  s_sstv_mode *modes = sstv_decoder.get_modes();
-  int16_t dc;
-  uint8_t line_rgb[320][4];
-  uint16_t last_pixel_y=0;
-
-  sstv_decoder.set_auto_slant_correction(ENABLE_SLANT_CORRECTION);
-  sstv_decoder.set_timeout_seconds(LOST_SIGNAL_TIMEOUT_SECONDS);
-  
+  c_sstv_decoder_fileio sstv_decoder(15000);
   while(1)
   {
-    uint16_t *samples;
-    adc_audio.input_samples(samples);
-    for(uint16_t idx=0; idx<1024; idx++)
-    {
-      samples[idx] = samples[idx*4] + samples[idx*4+1] + samples[idx*4+2] + samples[idx*4+3];
-    }
-
-    for(uint16_t idx=0; idx<1024; idx++)
-    {
-      dc = dc + (samples[idx] - dc)/2;
-      int16_t sample = samples[idx] - dc;
-      uint16_t pixel_y;
-      uint16_t pixel_x;
-      uint8_t pixel_colour;
-      uint8_t pixel;
-      int16_t frequency;
-      const bool new_pixel = sstv_decoder.decode_audio(sample, pixel_y, pixel_x, pixel_colour, pixel, frequency);
-
-      if(new_pixel)
-      {
-          e_mode mode = sstv_decoder.get_mode();
-
-          if(pixel_y > last_pixel_y)
-          {
-
-            //convert from 24 bit to 16 bit colour
-            uint16_t line_rgb565[320];
-            uint16_t scaled_pixel_y = 0;
-
-            if(mode == pd_50 || mode == pd_90 || mode == pd_120 || mode == pd_180)
-            {
-
-              //rescale imaagesto fit on screen
-              if(mode == pd_120 || mode == pd_180)
-              {
-                scaled_pixel_y = (uint32_t)last_pixel_y * 240 / 496; 
-              }
-              else
-              {
-                scaled_pixel_y = last_pixel_y;
-              }
-
-              for(uint16_t x=0; x<320; ++x)
-              {
-                int16_t y  = line_rgb[x][0];
-                int16_t cr = line_rgb[x][1];
-                int16_t cb = line_rgb[x][2];
-                cr = cr - 128;
-                cb = cb - 128;
-                int16_t r = y + 45 * cr / 32;
-                int16_t g = y - (11 * cb + 23 * cr) / 32;
-                int16_t b = y + 113 * cb / 64;
-                r = r<0?0:(r>255?255:r);
-                g = g<0?0:(g>255?255:g);
-                b = b<0?0:(b>255?255:b);
-                line_rgb565[x] = display->colour565(r, g, b);
-              }
-              display->writeHLine(0, scaled_pixel_y*2, 320, line_rgb565);
-              for(uint16_t x=0; x<320; ++x)
-              {
-                int16_t y  = line_rgb[x][3];
-                int16_t cr = line_rgb[x][1];
-                int16_t cb = line_rgb[x][2];
-                cr = cr - 128;
-                cb = cb - 128;
-                int16_t r = y + 45 * cr / 32;
-                int16_t g = y - (11 * cb + 23 * cr) / 32;
-                int16_t b = y + 113 * cb / 64;
-                r = r<0?0:(r>255?255:r);
-                g = g<0?0:(g>255?255:g);
-                b = b<0?0:(b>255?255:b);
-                line_rgb565[x] = display->colour565(r, g, b);
-              }
-              display->writeHLine(0, scaled_pixel_y*2 + 1, 320, line_rgb565);
-            }
-            else
-            {
-              for(uint16_t x=0; x<320; ++x)
-              {
-                line_rgb565[x] = display->colour565(line_rgb[x][0], line_rgb[x][1], line_rgb[x][2]);
-              }
-              display->writeHLine(0, last_pixel_y, 320, line_rgb565);
-              
-            }
-            for(uint16_t x=0; x<320; ++x) line_rgb[x][0] = line_rgb[x][1] = line_rgb[x][2] = 0;
-
-            //update progress
-            display->fillRect(320-(21*6)-2, 240-10, 10, 21*6+2, COLOUR_BLACK);
-            char buffer[21];
-            if(mode==martin_m1)
-            {
-              snprintf(buffer, 21, "Martin M1: %ux%u", modes[mode].width, last_pixel_y+1);
-            }
-            else if(mode==martin_m2)
-            {
-              snprintf(buffer, 21, "Martin M2: %ux%u", modes[mode].width, last_pixel_y+1);
-            }
-            else if(mode==scottie_s1)
-            {
-              snprintf(buffer, 21, "Scottie S1: %ux%u", modes[mode].width, last_pixel_y+1);
-            }
-            else if(mode==scottie_s2)
-            {
-              snprintf(buffer, 21, "Scottie S2: %ux%u", modes[mode].width, last_pixel_y+1);
-            }
-            else if(mode==sc2_120)
-            {
-              snprintf(buffer, 21, "SC2 120: %ux%u", modes[mode].width, last_pixel_y+1);
-            }
-            else if(mode==pd_50)
-            {
-              snprintf(buffer, 21, "PD 50: %ux%u", modes[mode].width, last_pixel_y+1);
-            }
-            else if(mode==pd_90)
-            {
-              snprintf(buffer, 21, "PD 90: %ux%u", modes[mode].width, last_pixel_y+1);
-            }
-            else if(mode==pd_120)
-            {
-              snprintf(buffer, 21, "PD 120: %ux%u", modes[mode].width, last_pixel_y+1);
-            }
-            else if(mode==pd_180)
-            {
-              snprintf(buffer, 21, "PD 180: %ux%u", modes[mode].width, last_pixel_y+1);
-            }
-            display->drawString(320-(21*6), 240-8, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK);
-            Serial.println(buffer);
-
-          }
-          last_pixel_y = pixel_y;
-          
-
-          if(pixel_x < 320 && pixel_y < 256 && pixel_colour < 4) {
-            if(STRETCH && modes[mode].width==160)
-            {
-              if(pixel_x < 160)
-              {
-                line_rgb[pixel_x*2][pixel_colour] = pixel;
-                line_rgb[pixel_x*2+1][pixel_colour] = pixel;
-              }
-            }
-            else
-            {
-              line_rgb[pixel_x][pixel_colour] = pixel;
-            }
-
-          }
-          
-      }
-
-    }
+    sstv_decoder.start();
+    sstv_decoder.decode_image("", LOST_SIGNAL_TIMEOUT_SECONDS, ENABLE_SLANT_CORRECTION);
+    sstv_decoder.stop();
   }
-  adc_audio.end();
 }
 
 void draw_splash_screen()

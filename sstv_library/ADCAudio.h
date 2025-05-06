@@ -13,14 +13,14 @@ class ADCAudio
     ADCAudio();
     void begin(const uint8_t audio_pin, const uint32_t audio_sample_rate);
     void end();
-    void input_samples(uint16_t*& samples);
+    int16_t* input_samples();
 
     private:
     int adc_dma;
     dma_channel_config cfg;
-    uint16_t ping[4096];
-    uint16_t pong[4096];
-    bool ping_running = true;
+    uint16_t samples[2][4096];
+    uint8_t buffer_number = 0;
+    uint16_t dc = 0;
 };
 
 #endif
