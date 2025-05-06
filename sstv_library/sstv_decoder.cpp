@@ -179,7 +179,7 @@ c_sstv_decoder :: c_sstv_decoder(float Fs)
 
   //martin m2
   {
-  const uint16_t width = 160;
+  const uint16_t width = 320;
   const float hsync_pulse_ms = 4.862;
   const float colour_gap_ms = 0.572;
   const float colour_time_ms = 73.216;
@@ -211,7 +211,7 @@ c_sstv_decoder :: c_sstv_decoder(float Fs)
 
   //scottie s2
   {
-  const uint16_t width = 160;
+  const uint16_t width = 320;
   const float hsync_pulse_ms = 9;
   const float colour_gap_ms = 1.5;
   const float colour_time_ms = 88.064;
@@ -536,6 +536,7 @@ void c_sstv_decoder :: decode_sample(uint16_t sample, uint16_t &pixel_y, uint16_
         {
           state = detect_sync;
           sync_counter = 0;
+          image_complete = true;
           break;
         }
       }
