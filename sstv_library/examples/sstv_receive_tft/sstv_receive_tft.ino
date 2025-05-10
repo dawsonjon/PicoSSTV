@@ -43,14 +43,14 @@
 //If the image doesn't fill the display, or is rotated try changing
 //the ROTATION.
 
-#define ROTATION R0DEG
+//#define ROTATION R0DEG
 //#define ROTATION R90DEG
 //#define ROTATION R180DEG
 //#define ROTATION R270DEG
 //#define ROTATION MIRRORED0DEG
 //#define ROTATION MIRRORED90DEG
 //#define ROTATION MIRRORED180DEG
-//#define ROTATION MIRRORED270DEG
+#define ROTATION MIRRORED270DEG
 
 //The splash screen should have blue lettering, if you see red lettering 
 //try changing the INVERT_COLOURS setting.
@@ -170,12 +170,7 @@ void loop() {
 
 void draw_splash_screen()
 {
-  uint32_t z=0;
-  for(uint16_t y=0;y<240; ++y)
-  {
-    display->writeHLine(0, y, 320, &splash[z]);
-    z+=320;
-  }
+  display->writeImage(0, 0, 320, 240, splash);
 }
 
 void configure_display()
@@ -188,9 +183,8 @@ void configure_display()
   gpio_set_dir(PIN_CS, GPIO_OUT);
   gpio_init(PIN_DC);
   gpio_set_dir(PIN_DC, GPIO_OUT);
-  display = new ILI934X(SPI_PORT, PIN_CS, PIN_DC, 320, 240, R0DEG, INVERT_DISPLAY);
-  display->setRotation(ROTATION, INVERT_COLOURS);
-  display->init();
+  display = new ILI934X(SPI_PORT, PIN_CS, PIN_DC, 320, 240);
+  display->init(ROTATION, INVERT_COLOURS, INVERT_DISPLAY, ILI9341_2);
   display->powerOn(true);
   display->clear();
   draw_splash_screen();
