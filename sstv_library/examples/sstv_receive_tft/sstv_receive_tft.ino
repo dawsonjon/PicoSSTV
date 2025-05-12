@@ -151,7 +151,6 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
 
 void setup() {
   Serial.begin(115200);
-  while (!Serial) delay(1);  // wait for serial port to connect.
   configure_display();
   Serial.println("Pico SSTV Copyright (C) Jonathan P Dawson 2024");
   Serial.println("github: https://github.com/dawsonjon/101Things");

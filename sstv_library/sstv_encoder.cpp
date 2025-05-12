@@ -62,16 +62,20 @@ void c_sstv_encoder :: generate_vis_bit(uint8_t level)
     else generate_tone(1300, 30<<16);
 }
 
-void c_sstv_encoder :: generate_vis_code(e_sstv_tx_mode mode, uint16_t width, uint16_t height)
+void c_sstv_encoder :: generate_vis_code(e_sstv_tx_mode mode)
 {
-
   uint8_t vis = 0u;
-
-  if(mode == martin) vis |= 0x20;
-  else vis |= 0x30;
-  if(width == 320) vis |= 0x4;
-  if(height == 256) vis |= 0x8;
-
+  switch(mode)
+  {
+    case tx_PD_50: vis = 93; break;
+    case tx_PD_90: vis = 94; break;
+    case tx_PD_120: vis = 95; break;
+    case tx_PD_180: vis = 97; break;
+    case tx_martin_m1: vis = 44; break;
+    case tx_martin_m2: vis = 45; break;
+    case tx_scottie_s1: vis = 60; break;
+    case tx_scottie_s2: vis = 61; break;
+  }
   generate_tone(1200, 30<<16);//start bit
   for(uint8_t i=0; i<8; ++i)
   {
@@ -89,12 +93,30 @@ uint16_t c_sstv_encoder :: get_pixel(uint16_t width, uint16_t height, uint16_t y
   return pixel;
 }
 
-void c_sstv_encoder :: generate_scottie(uint16_t width, uint16_t height)
+void c_sstv_encoder :: generate_scottie(e_sstv_tx_mode mode)
 {
+  uint16_t width, height;
+  float colour_time_ms;
+
+  switch(mode)
+  {
+    case tx_scottie_s1:
+      width = 320;
+      height = 240;
+      colour_time_ms = 138.240;
+      break;
+
+    case tx_scottie_s2:
+      width = 320;
+      height = 240;
+      colour_time_ms = 88.064;
+      break;
+
+    default: return;
+  }
 
   uint32_t hsync_pulse_ms_f16 = 9.0f * (1<<16);
   uint32_t colour_gap_ms_f16 = 1.5f * (1<<16);
-  float colour_time_ms = (width == 320)?138.240:88.064;
   uint32_t pixel_time_ms_f16 = (colour_time_ms*(1<<16))/width;
 
   //send rows
@@ -115,12 +137,31 @@ void c_sstv_encoder :: generate_scottie(uint16_t width, uint16_t height)
   }
 }
 
-void c_sstv_encoder :: generate_martin(uint16_t width, uint16_t height)
+void c_sstv_encoder :: generate_martin(e_sstv_tx_mode mode)
 {
+
+  uint16_t width, height;
+  float colour_time_ms;
+
+  switch(mode)
+  {
+    case tx_martin_m1:
+      width = 320;
+      height = 240;
+      colour_time_ms = 146.320;
+      break;
+
+    case tx_martin_m2:
+      width = 320;
+      height = 240;
+      colour_time_ms = 73.216;
+      break;
+
+    default: return;
+  }
 
   uint32_t hsync_pulse_ms_f16 = 4.862 * (1<<16);
   uint32_t colour_gap_ms_f16 = 0.572 * (1<<16);
-  float colour_time_ms = (width == 320)?146.342:73.216;
   uint32_t pixel_time_ms_f16 = (colour_time_ms*(1<<16))/width;
 
   //send rows
@@ -170,11 +211,41 @@ void rgb_to_ycrcb_fixed(uint8_t R, uint8_t G, uint8_t B, uint8_t &Y, uint8_t &Cr
     Cr = (unsigned char)CLAMP(cr);
 }
 
-void c_sstv_encoder :: generate_pd(uint16_t width, uint16_t height)
+void c_sstv_encoder :: generate_pd(e_sstv_tx_mode mode)
 {
+  uint16_t width, height;
+  float colour_time_ms;
+
+  switch(mode)
+  {
+    case tx_PD_50:
+      width = 320;
+      height = 240;
+      colour_time_ms = 91.520;
+      break;
+
+    case tx_PD_90:
+      width = 320;
+      height = 240;
+      colour_time_ms = 170.240;
+      break;
+
+    case tx_PD_120:
+      width = 640;
+      height = 480;
+      colour_time_ms = 121.600;
+      break;
+
+    case tx_PD_180:
+      width = 640;
+      height = 480;
+      colour_time_ms = 183.040;
+      break;
+
+    default: return;
+  }
   uint32_t hsync_pulse_ms_f16 = 20.0 * (1<<16);
   uint32_t colour_gap_ms_f16 = 2.08 * (1<<16);
-  float colour_time_ms = (width == 640)?121.6:91.520; //pd120 - pd90
   uint32_t pixel_time_ms_f16 = (colour_time_ms*(1<<16))/width;
 
   //send rows
@@ -222,17 +293,31 @@ void c_sstv_encoder :: generate_pd(uint16_t width, uint16_t height)
   }
 }
 
-void c_sstv_encoder :: generate_sstv(e_sstv_tx_mode mode, uint16_t width, uint16_t height)
+void c_sstv_encoder :: generate_sstv(e_sstv_tx_mode mode)
 {
 
   generate_tone(1900, 300 << 16);
   generate_tone(1200, 10 << 16);
   generate_tone(1900, 300 << 16);
-  generate_vis_code(mode, width, height);
+  generate_vis_code(mode);
 
+  switch(mode)
+  {
+    case tx_PD_50:
+    case tx_PD_90:
+    case tx_PD_120:
+    case tx_PD_180:
+      generate_pd(mode);
+      break;
 
-  if (mode == martin) generate_martin(width, height);
-  else if (mode == scottie) generate_scottie(width, height);
-  else generate_pd(width, height);
+    case tx_martin_m1:
+    case tx_martin_m2:
+      generate_martin(mode);
+      break;
 
+    case tx_scottie_s1:
+    case tx_scottie_s2:
+      generate_scottie(mode);
+      break;
+  }
 }

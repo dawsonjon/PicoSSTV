@@ -102,10 +102,12 @@ enum e_view_mode {rx_mode, slideshow_mode};
 struct s_settings {
   uint8_t slideshow_timeout;
   uint8_t lost_signal_timeout;
+  uint8_t transmit_mode;
 };
 s_settings settings = {
   3, //5 seconds
-  5  //30 seconds
+  5,  //30 seconds
+  1
 };
 
 class c_bmp_writer_stdio : public c_bmp_writer
@@ -326,7 +328,6 @@ class c_sstv_encoder_pwm : public c_sstv_encoder
 
 void setup() {
   Serial.begin(115200);
-  while (!Serial) delay(1);  // wait for serial port to connect.
 
   Serial.println("Pico SSTV Copyright (C) Jonathan P Dawson 2025");
   Serial.println("github: https://github.com/dawsonjon/101Things");
@@ -552,7 +553,7 @@ void transmit_image(const char* filename)
   c_sstv_encoder_pwm sstv_encoder(sample_rate_Hz);
   sstv_encoder.open(filename);
   digitalWrite(LED_BUILTIN, 1);
-  sstv_encoder.generate_sstv(martin, 320, 240);
+  sstv_encoder.generate_sstv((e_sstv_tx_mode)settings.transmit_mode);
   digitalWrite(LED_BUILTIN, 0);
   sstv_encoder.close();
 }
@@ -699,7 +700,7 @@ void launch_menu(e_view_mode &view_mode)
       }
       else if(menu_selection == 2)//transmit mode
       {
-        
+        get_transmit_mode(settings.transmit_mode);
       }
       else if(menu_selection == 3)//slideshow_timeout
       {
@@ -725,6 +726,21 @@ void get_timeout_seconds(const char* title, uint8_t & menu_selection)
   menu(title, menu_selection, menu_selections, 9);
 }
 
+void get_transmit_mode(uint8_t & menu_selection)
+{
+  const char * const menu_selections[] = {
+    "Martin M1",
+    "Martin M2",
+    "Scottie S1",
+    "Scottie S2",
+    "PD 50",
+    "PD 90",
+    "PD 120",
+    "PD 180"
+  };
+  menu("Transmit Mode", menu_selection, menu_selections, 8);
+}
+
 bool menu(const char* title, uint8_t &selection, const char * const menu_items[], uint8_t num_selections)
 {
   const uint8_t num_menu_items = num_selections;
@@ -737,7 +753,7 @@ bool menu(const char* title, uint8_t &selection, const char * const menu_items[]
   uint16_t width = strlen(title)*12;
   display->drawString((DISPLAY_WIDTH-width)/2, 0, font_16x12, title, display->colour565(0, 255, 128), 0);
   display->drawFastHline(0, DISPLAY_WIDTH, 30, display->colour565(0, 255, 128)); 
-  display->drawFastHline(0, DISPLAY_WIDTH, DISPLAY_HEIGHT-30, display->colour565(0, 255, 128)); 
+  display->drawFastHline(0, DISPLAY_WIDTH, DISPLAY_HEIGHT-30, display->colour565(0, 255, 128));
   display->drawString(7, DISPLAY_HEIGHT-30+7, font_16x12, "  OK   Cancel  Up   Down ", display->colour565(0, 255, 128), 0);
   
   while(1)
@@ -769,7 +785,7 @@ bool menu(const char* title, uint8_t &selection, const char * const menu_items[]
 
     if(draw)
     {
-      display->fillRect(0, 31, 179, 320, COLOUR_DARKGREY);
+      display->fillRect(0, 31, 179, 320, COLOUR_BLACK);
       for(uint8_t idx=0; idx < num_items_on_screen; ++idx)
       {
         const uint8_t menu_item_index = idx + offset;
@@ -777,7 +793,8 @@ bool menu(const char* title, uint8_t &selection, const char * const menu_items[]
         if(menu_item_index < num_selections)
         {
           uint16_t colour = menu_item == menu_item_index?display->colour565(255, 0, 255):display->colour565(128, 0, 128);
-          display->drawString(3, 32 + ((idx)*20), font_16x12, menu_items[menu_item_index],  colour, COLOUR_DARKGREY);
+          uint16_t text_width = strlen(menu_items[menu_item_index])*12;
+          display->drawString((DISPLAY_WIDTH-text_width)/2, 32 + ((idx)*20), font_16x12, menu_items[menu_item_index],  colour, COLOUR_BLACK);
         } 
       }
       draw = false;

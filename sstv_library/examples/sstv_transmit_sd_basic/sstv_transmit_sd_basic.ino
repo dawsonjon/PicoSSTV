@@ -38,7 +38,6 @@ const int SDCARD_SCK = 6;
 
 void setup() {
   Serial.begin(115200);
-  while (!Serial) delay(1);  // wait for serial port to connect.
 
   Serial.println("Pico SSTV Copyright (C) Jonathan P Dawson 2025");
   Serial.println("github: https://github.com/dawsonjon/101Things");
@@ -159,7 +158,7 @@ void loop() {
   Serial.println(sample_rate_Hz);
   c_sstv_encoder_pwm sstv_encoder(sample_rate_Hz);
   sstv_encoder.open("test_card.bmp");
-  sstv_encoder.generate_sstv(martin, 320, 240);
+  sstv_encoder.generate_sstv(tx_martin_m1);
   sstv_encoder.close();
 }
 

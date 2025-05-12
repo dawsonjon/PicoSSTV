@@ -16,7 +16,7 @@
 
 #include <cstdint>
 
-enum e_sstv_tx_mode {martin, scottie, pd};
+enum e_sstv_tx_mode {tx_martin_m1, tx_martin_m2, tx_scottie_s1, tx_scottie_s2, tx_PD_50, tx_PD_90, tx_PD_120, tx_PD_180};
 
 class c_sstv_encoder
 {
@@ -30,11 +30,11 @@ class c_sstv_encoder
   void generate_tone(uint16_t frequency, uint32_t time_ms_f16);
   bool calculate_parity(uint8_t number);
   void generate_vis_bit(uint8_t level);
-  void generate_vis_code(e_sstv_tx_mode mode, uint16_t width, uint16_t height);
+  void generate_vis_code(e_sstv_tx_mode mode);
   uint16_t get_pixel(uint16_t width, uint16_t height, uint16_t y, uint16_t x, uint8_t colour);
-  void generate_scottie(uint16_t width, uint16_t height);
-  void generate_martin(uint16_t width, uint16_t height);
-  void generate_pd(uint16_t width, uint16_t height);
+  void generate_scottie(e_sstv_tx_mode mode);
+  void generate_martin(e_sstv_tx_mode mode);
+  void generate_pd(e_sstv_tx_mode mode);
 
   //override these application specific functions
   virtual void output_sample(int16_t sample) = 0;
@@ -42,7 +42,7 @@ class c_sstv_encoder
 
   public:
   c_sstv_encoder(double fs_Hz);
-  void generate_sstv(e_sstv_tx_mode, uint16_t width, uint16_t height);
+  void generate_sstv(e_sstv_tx_mode);
 
 };
 
