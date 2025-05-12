@@ -66,9 +66,9 @@ class c_bmp_reader_stdio : public c_bmp_reader
         fclose(f);
     }
 
-    void file_read(void* data, uint32_t element_size, uint32_t num_elements)
+    uint32_t file_read(void* data, uint32_t element_size, uint32_t num_elements)
     {
-        fread(data, element_size, num_elements, f);
+        return fread(data, element_size, num_elements, f);
     }
 
     void file_seek(uint32_t offset)
@@ -119,9 +119,6 @@ class c_sstv_encoder_pwm : public c_sstv_encoder
 
     while(image_y > row_number)
     {
-      //Serial.print(image_y);
-      //Serial.print("/");
-      //Serial.println(image_height);
       bitmap.read_row_rgb565(row);
       row_number++;
     }

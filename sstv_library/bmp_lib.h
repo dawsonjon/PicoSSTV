@@ -41,7 +41,7 @@ class c_bmp_reader
 
   virtual bool file_open(const char* filename)=0;
   virtual void file_close()=0;
-  virtual void file_read(void* data, uint32_t element_size, uint32_t num_elements)=0;
+  virtual uint32_t file_read(void* data, uint32_t element_size, uint32_t num_elements)=0;
   virtual void file_seek(uint32_t offset)=0;
 
 };

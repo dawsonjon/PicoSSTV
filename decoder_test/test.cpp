@@ -40,12 +40,12 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
     return sample;
   }
 
-  void image_write_line(uint16_t line_rgb565[], uint16_t y, uint16_t width, uint16_t height)
+  void image_write_line(uint16_t line_rgb565[], uint16_t y, uint16_t width, uint16_t height, const char * mode_name)
   {
     bitmap.write_row_rgb565(line_rgb565);
   }
 
-  void image_open(const char* bmp_file_name, uint16_t width, uint16_t height)
+  void image_open(const char* bmp_file_name, uint16_t width, uint16_t height, const char * mode_name)
   {
     bitmap.open(bmp_file_name, width, height);
   }

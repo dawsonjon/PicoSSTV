@@ -574,76 +574,81 @@ static uint16_t ycrcb_to_rgb565(int16_t y, int16_t cr, int16_t cb)
     return rgb_to_rgb565(r, g, b);
 }
 
-void c_sstv_decoder :: decode_image(const char* image_filename, uint8_t timeout_s, bool slant_correction)
+bool c_sstv_decoder :: decode_image_non_blocking(const char* image_filename, uint8_t timeout_s, bool slant_correction, bool &image_in_progress)
 {
   m_timeout = timeout_s * m_Fs;
   m_auto_slant_correction = slant_correction;
 
-  uint8_t line[640][4]; //array to contain seperate colour components of each decoded line
-  bool image_open_flag = false;
+  uint16_t pixel_x, pixel_y;
+  uint8_t pixel_colour;
+  uint8_t pixel;
+  bool pixel_complete, line_complete, image_complete;
 
-  while(1)
+  int16_t sample = get_frequency_sample();
+  decode_sample(sample, pixel_y, pixel_x, pixel_colour, pixel, pixel_complete, line_complete, image_complete);
+
+  if(pixel_complete)
   {
-      uint16_t pixel_x, pixel_y;
-      uint8_t pixel_colour;
-      uint8_t pixel;
-      bool pixel_complete, line_complete, image_complete;
+    if(pixel_x < 640 && pixel_colour < 4) m_line[pixel_x][pixel_colour] = pixel;
+  }
 
-      int16_t sample = get_frequency_sample();
-      decode_sample(sample, pixel_y, pixel_x, pixel_colour, pixel, pixel_complete, line_complete, image_complete);
+  if(line_complete)
+  {
+    uint16_t line_rgb565[640]; //array to hold one line of image in rgb565 format
 
-      if(pixel_complete)
+    if(decode_mode == pd_50 || decode_mode == pd_90 || decode_mode == pd_120 || decode_mode == pd_180)
+    {
+      if(!m_image_open_flag) image_open(image_filename, modes[decode_mode].width, modes[decode_mode].max_height*2, modes[decode_mode].mode_string);
+      m_image_open_flag = true;
+
+      for(uint16_t x=0; x<modes[decode_mode].width; ++x)
       {
-        if(pixel_x < 640 && pixel_colour < 4) line[pixel_x][pixel_colour] = pixel;
+        int16_t y  = m_line[x][0];
+        int16_t cr = m_line[x][1];
+        int16_t cb = m_line[x][2];
+        line_rgb565[x] = ycrcb_to_rgb565(y, cr, cb);
       }
+      image_write_line(line_rgb565, pixel_y*2, modes[decode_mode].width, modes[decode_mode].max_height*2, modes[decode_mode].mode_string);
 
-      if(line_complete)
+      for(uint16_t x=0; x<modes[decode_mode].width; ++x)
       {
-        uint16_t line_rgb565[640]; //array to hold one line of image in rgb565 format
-
-        if(decode_mode == pd_50 || decode_mode == pd_90 || decode_mode == pd_120 || decode_mode == pd_180)
-        {
-            if(!image_open_flag) image_open(image_filename, modes[decode_mode].width, modes[decode_mode].max_height*2, modes[decode_mode].mode_string);
-            image_open_flag = true;
-
-            for(uint16_t x=0; x<modes[decode_mode].width; ++x)
-            {
-              int16_t y  = line[x][0];
-              int16_t cr = line[x][1];
-              int16_t cb = line[x][2];
-              line_rgb565[x] = ycrcb_to_rgb565(y, cr, cb);
-            }
-            image_write_line(line_rgb565, pixel_y*2, modes[decode_mode].width, modes[decode_mode].max_height*2, modes[decode_mode].mode_string);
-
-            for(uint16_t x=0; x<modes[decode_mode].width; ++x)
-            {
-              int16_t y  = line[x][3];
-              int16_t cr = line[x][1];
-              int16_t cb = line[x][2];
-              line_rgb565[x] = ycrcb_to_rgb565(y, cr, cb);
-            }
-            image_write_line(line_rgb565, pixel_y*2+1, modes[decode_mode].width, modes[decode_mode].max_height*2, modes[decode_mode].mode_string);
-        }
-        else
-        {
-            if(!image_open_flag) image_open(image_filename, modes[decode_mode].width, modes[decode_mode].max_height, modes[decode_mode].mode_string);
-            image_open_flag = true;
-
-            for(uint16_t x=0; x<modes[decode_mode].width; ++x)
-            {
-              int16_t r = line[x][0];
-              int16_t g = line[x][1];
-              int16_t b = line[x][2];
-              line_rgb565[x] = rgb_to_rgb565(r, g, b);
-            }
-            image_write_line(line_rgb565, pixel_y, modes[decode_mode].width, modes[decode_mode].max_height, modes[decode_mode].mode_string);
-        }
+        int16_t y  = m_line[x][3];
+        int16_t cr = m_line[x][1];
+        int16_t cb = m_line[x][2];
+        line_rgb565[x] = ycrcb_to_rgb565(y, cr, cb);
       }
+      image_write_line(line_rgb565, pixel_y*2+1, modes[decode_mode].width, modes[decode_mode].max_height*2, modes[decode_mode].mode_string);
+    }
+    else
+    {
+      if(!m_image_open_flag) image_open(image_filename, modes[decode_mode].width, modes[decode_mode].max_height, modes[decode_mode].mode_string);
+      m_image_open_flag = true;
 
-      if(image_complete)
+      for(uint16_t x=0; x<modes[decode_mode].width; ++x)
       {
-        image_close();
-        return;
+        int16_t r = m_line[x][0];
+        int16_t g = m_line[x][1];
+        int16_t b = m_line[x][2];
+        line_rgb565[x] = rgb_to_rgb565(r, g, b);
       }
-   }
+      image_write_line(line_rgb565, pixel_y, modes[decode_mode].width, modes[decode_mode].max_height, modes[decode_mode].mode_string);
+    }
+  }
+
+  image_in_progress = m_image_open_flag;
+
+  if(image_complete)
+  {
+    m_image_open_flag = false;
+    image_close();
+    return true;
+  }
+
+  return false;
+}
+
+void c_sstv_decoder :: decode_image(const char* image_filename, uint8_t timeout_s, bool slant_correction)
+{
+  bool image_in_progress = false;
+  while(!decode_image_non_blocking(image_filename, timeout_s, slant_correction, image_in_progress));
 }

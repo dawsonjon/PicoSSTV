@@ -89,7 +89,9 @@ class c_sstv_decoder
   s_sstv_mode modes[num_modes];
   bool m_auto_slant_correction;
   uint32_t m_timeout;
-  bool image_complete_flag = false;
+  bool m_image_open_flag = false;
+  bool m_image_complete_flag = false;
+  uint8_t m_line[640][4]; //array to contain seperate colour components of each decoded line
 
   void decode_sample(uint16_t sample, uint16_t &pixel_y, uint16_t &pixel_x, uint8_t &pixel_colour, uint8_t &pixel, bool &pixel_complete, bool &line_complete, bool &image_complete);
 
@@ -112,6 +114,7 @@ class c_sstv_decoder
   public:
   c_sstv_decoder(float Fs);
   void decode_image(const char* image_filename, uint8_t timeout_s, bool slant_correction);
+  bool decode_image_non_blocking(const char* image_filename, uint8_t timeout_s, bool slant_correction, bool & image_in_progress);
 
 };
 

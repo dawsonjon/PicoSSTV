@@ -139,12 +139,16 @@ void c_bmp_reader :: read_row_rgb565(uint16_t *rgb565_data)
       uint32_t start_of_row = m_start_of_image + ((m_height - 1 - m_y) * m_row_bytes);
       file_seek(start_of_row);
     }
-    file_read(row, 1, m_row_bytes);
+    uint32_t bytes_read = file_read(row, 1, m_row_bytes);
 
     for (int x = 0; x < m_width; x++) {
         uint8_t r = 0, g = 0, b = 0;
 
-        if (m_bpp == 24) {
+        if (bytes_read < m_row_bytes){
+            b = 0xff;
+            g = 0x00;
+            r = 0x00;
+        } else if(m_bpp == 24) {
             b = row[x * 3 + 0];
             g = row[x * 3 + 1];
             r = row[x * 3 + 2];
