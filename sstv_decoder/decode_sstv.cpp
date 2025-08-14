@@ -136,7 +136,7 @@ void c_sstv_decoder :: sample_to_pixel(uint16_t &x, uint16_t &y, uint8_t &colour
     }
     else
     {
-      colour = 5;
+      colour = 4;
       x = 0;
     }
 
