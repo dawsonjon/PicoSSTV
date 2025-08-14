@@ -58,7 +58,7 @@ void c_sstv_decoder :: sample_to_pixel(uint16_t &x, uint16_t &y, uint8_t &colour
     image_sample -= modes[decode_mode].samples_per_hsync;
     if(image_sample < 0)
     {
-        //return colour 5 for non-displayable pixels (e.g. during hsync)
+        //return colour 4 for non-displayable pixels (e.g. during hsync)
         x = 0; y=0; colour=4;
         return;
     }
@@ -82,7 +82,7 @@ void c_sstv_decoder :: sample_to_pixel(uint16_t &x, uint16_t &y, uint8_t &colour
     }
     if( image_sample < 0 )
     {
-        //return colour 5 for non-displayable pixels (e.g. during hsync)
+        //return colour 4 for non-displayable pixels (e.g. during hsync)
         x = 0; y=0; colour=4;
         return;
     }
@@ -147,9 +147,7 @@ void c_sstv_decoder :: sample_to_pixel(uint16_t &x, uint16_t &y, uint8_t &colour
       return;
     }
   }
-
 }
-
 
 uint8_t c_sstv_decoder :: frequency_to_brightness(uint16_t x)
 {
