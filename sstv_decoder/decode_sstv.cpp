@@ -12,12 +12,14 @@ void c_sstv_decoder :: sample_to_pixel(uint16_t &x, uint16_t &y, uint8_t &colour
 
   if( decode_mode == martin_m1 || decode_mode == martin_m2 )
   {
+    
     y = image_sample/mean_samples_per_line;
     image_sample -= y*mean_samples_per_line;
     colour = image_sample/modes[decode_mode].samples_per_colour_line;
     image_sample -= colour*modes[decode_mode].samples_per_colour_line;
     colour = colourmap[colour];
     x = image_sample/modes[decode_mode].samples_per_pixel;
+    
   }
 
   else if(decode_mode == robot36)
@@ -49,6 +51,7 @@ void c_sstv_decoder :: sample_to_pixel(uint16_t &x, uint16_t &y, uint8_t &colour
         x = image_sample/(modes[decode_mode].samples_per_pixel);
     } 
   }
+    
   else if( decode_mode == scottie_s1 || decode_mode == scottie_s2 || decode_mode == scottie_dx)
   {
 
@@ -63,10 +66,9 @@ void c_sstv_decoder :: sample_to_pixel(uint16_t &x, uint16_t &y, uint8_t &colour
         return;
     }
 
-    y = image_sample/mean_samples_per_line;
-    
+    y = image_sample/mean_samples_per_line;    
     image_sample -= y*mean_samples_per_line;
-   
+    
     //hsync is between blue and red component (not at end of line)
     //for red component, subtract the length of the scan-line
     if( image_sample < 2*modes[decode_mode].samples_per_colour_line)
@@ -92,7 +94,7 @@ void c_sstv_decoder :: sample_to_pixel(uint16_t &x, uint16_t &y, uint8_t &colour
 
   }
 
-  else if( decode_mode == pd_50 || decode_mode == pd_90 || decode_mode == pd_120 || decode_mode == pd_180) 
+  else if( decode_mode == pd_50 || decode_mode == pd_90 || decode_mode == pd_120 || decode_mode == pd_180)
   {
     static const uint8_t colourmap[5] = {0, 1, 2, 3, 4};
 
