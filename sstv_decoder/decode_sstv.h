@@ -9,13 +9,13 @@ enum e_mode
   martin_m2, 
   scottie_s1, 
   scottie_s2,
-  scottiedx,
+  scottie_dx,
   pd_50,
   pd_90,
   pd_120,
   pd_180,
   sc2_120,
-  robot36
+  robot36,
   num_modes
 };
 
