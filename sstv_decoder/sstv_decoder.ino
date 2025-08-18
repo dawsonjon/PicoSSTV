@@ -200,7 +200,7 @@ void loop() {
                   g = g<0?0:(g>255?255:g);
                   b = b<0?0:(b>255?255:b);
 
-                 line_rgb565[x] = display->color565(r, g, b);            
+                 line_rgb565[x] = display->colour565(r, g, b);            
                  
                 }
               display->writeHLine(0, last_pixel_y, 320, line_rgb565);
@@ -324,5 +324,6 @@ void configure_display()
   display->clear();
   draw_splash_screen();
 }
+
 
 
