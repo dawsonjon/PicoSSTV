@@ -12,19 +12,48 @@ void c_sstv_decoder :: sample_to_pixel(uint16_t &x, uint16_t &y, uint8_t &colour
 
   if( decode_mode == martin_m1 || decode_mode == martin_m2 )
   {
-
+    
     y = image_sample/mean_samples_per_line;
     image_sample -= y*mean_samples_per_line;
     colour = image_sample/modes[decode_mode].samples_per_colour_line;
     image_sample -= colour*modes[decode_mode].samples_per_colour_line;
     colour = colourmap[colour];
     x = image_sample/modes[decode_mode].samples_per_pixel;
-
+    
   }
 
-  else if( decode_mode == scottie_s1 || decode_mode == scottie_s2 )
+  else if(decode_mode == robot36)
   {
-
+    
+    image_sample -= modes[decode_mode].samples_per_hsync;
+    if(image_sample < 0)
+    {
+      //return colour 4 for non-displayable pixels (e.g. during hsync)
+      x = 0; y=0; colour=4;
+      return;
+    }
+    y = image_sample/mean_samples_per_line;
+    image_sample -= y*mean_samples_per_line;
+   
+    //Double duration of y channel
+    if (image_sample<modes[decode_mode].samples_per_colour_line*2)
+    {
+        colour = 0; 
+        x = image_sample/(modes[decode_mode].samples_per_pixel*2);
+    } else if (image_sample<modes[decode_mode].samples_per_colour_line*2+modes[robot36].samples_per_colour_gap) {
+      //For detecting 2300 or 1500 sync
+      colour=3;
+      x=(image_sample-modes[decode_mode].samples_per_colour_line*2)/modes[decode_mode].samples_per_pixel;
+    } else if (image_sample>modes[decode_mode].samples_per_colour_line*2+modes[robot36].samples_per_colour_gap) {
+        //Alternatively channel 1 (cr) and 2 (cb)    
+        colour = 1+(y%2);
+        image_sample -=modes[decode_mode].samples_per_colour_line*2+modes[robot36].samples_per_colour_gap; 
+        x = image_sample/(modes[decode_mode].samples_per_pixel);
+    } 
+  }
+    
+  else if( decode_mode == scottie_s1 || decode_mode == scottie_s2 || decode_mode == scottie_dx)
+  {
 
     //with scottie, sync id mid-line between blue and red.
     //subtract the red period to sync to next full line
@@ -37,9 +66,9 @@ void c_sstv_decoder :: sample_to_pixel(uint16_t &x, uint16_t &y, uint8_t &colour
         return;
     }
 
-    y = image_sample/mean_samples_per_line;
+    y = image_sample/mean_samples_per_line;    
     image_sample -= y*mean_samples_per_line;
-
+    
     //hsync is between blue and red component (not at end of line)
     //for red component, subtract the length of the scan-line
     if( image_sample < 2*modes[decode_mode].samples_per_colour_line)
@@ -84,7 +113,7 @@ void c_sstv_decoder :: sample_to_pixel(uint16_t &x, uint16_t &y, uint8_t &colour
     x = image_sample/modes[decode_mode].samples_per_pixel;
   }
 
-  else if( decode_mode == sc2_120)
+  else if( decode_mode == sc2_120 )
   {
 
     y = image_sample/mean_samples_per_line;
@@ -120,7 +149,6 @@ void c_sstv_decoder :: sample_to_pixel(uint16_t &x, uint16_t &y, uint8_t &colour
       return;
     }
   }
-
 }
 
 uint8_t c_sstv_decoder :: frequency_to_brightness(uint16_t x)
@@ -207,7 +235,21 @@ c_sstv_decoder :: c_sstv_decoder(float Fs)
   modes[scottie_s2].samples_per_hsync = scale*Fs*hsync_pulse_ms/1000.0;
   modes[scottie_s2].max_height = 256;
   }
-
+//scottie dx
+  {
+  const uint16_t width = 320;
+  const float hsync_pulse_ms = 9;
+  const float colour_gap_ms = 1.5;
+  const float colour_time_ms = 345.600;
+  modes[scottie_dx].width = width;
+  modes[scottie_dx].samples_per_line = scale*Fs*((colour_time_ms*3)+(colour_gap_ms*3) + hsync_pulse_ms)/1000.0;
+  modes[scottie_dx].samples_per_colour_line = scale*Fs*(colour_time_ms+colour_gap_ms)/1000.0;
+  modes[scottie_dx].samples_per_colour_gap = scale*Fs*colour_gap_ms/1000.0;
+  modes[scottie_dx].samples_per_pixel = scale*Fs*colour_time_ms/(1000.0 * width);
+  modes[scottie_dx].samples_per_hsync = scale*Fs*hsync_pulse_ms/1000.0;
+  modes[scottie_dx].max_height = 256;
+  }
+  
   //pd 50
   {
   const uint16_t width = 320;
@@ -282,7 +324,20 @@ c_sstv_decoder :: c_sstv_decoder(float Fs)
   modes[sc2_120].samples_per_hsync = m_scale*Fs*hsync_pulse_ms/1000.0;
   modes[sc2_120].max_height = 256;
   }
-
+  //Robot36 tot:150
+  {
+  const uint16_t width = 320;
+  const float hsync_pulse_ms = 9;
+  const float colour_gap_ms = 6;
+  const float colour_time_ms = 44;
+  modes[robot36].width = width;
+  modes[robot36].samples_per_line = scale*Fs*((colour_time_ms*3)+ (colour_gap_ms*1.5) + hsync_pulse_ms)/1000.0;
+  modes[robot36].samples_per_colour_line = scale*Fs*(colour_time_ms)/1000.0;
+  modes[robot36].samples_per_colour_gap = scale*Fs*colour_gap_ms/1000.0;
+  modes[robot36].samples_per_pixel = scale*Fs*colour_time_ms/(1000.0 * width);
+  modes[robot36].samples_per_hsync = m_scale*Fs*hsync_pulse_ms/1000.0;
+  modes[robot36].max_height = 240;
+  }
   cordic_init();
 }
 
@@ -349,7 +404,7 @@ bool c_sstv_decoder :: decode_iq(int16_t sample_i, int16_t sample_q, uint16_t &p
 
 
   static uint32_t smoothed_sample = 0;
-  smoothed_sample = ((smoothed_sample << 3) + sample - smoothed_sample) >> 3;
+  smoothed_sample = ((smoothed_sample << 4) + sample - smoothed_sample) >> 4;
   smoothed_sample_16 = std::min(std::max(smoothed_sample, (uint32_t)1000u), (uint32_t)2500u);
 
   e_state debug_state;
