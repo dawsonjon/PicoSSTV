@@ -127,7 +127,7 @@ void loop() {
             if(mode == pd_50 || mode == pd_90 || mode == pd_120 || mode == pd_180)
             {
 
-              //rescale imaagesto fit on screen
+              //rescale images to fit on screen
               if(mode == pd_120 || mode == pd_180)
               {
                 scaled_pixel_y = (uint32_t)last_pixel_y * 240 / 496; 
@@ -221,7 +221,10 @@ void loop() {
             }        
 
             //update progress
-            display->fillRect(320-(21*6)-2, 240-10, 10, 21*6+2, COLOUR_BLACK);
+            // display->fillRect(320-(21*6)-2, 240-10, 10, 21*6+2, COLOUR_BLACK);  //bottom right
+            // display->fillRect(0, 240-10, 10, 21*6+2, COLOUR_BLACK);  //bottom left
+            display->fillRect(320-(21*6)-2, 0, 10, 21*6+2, COLOUR_BLACK);   //top right
+            // display->fillRect(0, 0, 10, 21*6+2, COLOUR_BLACK); //top left
             char buffer[21];
             if(mode==martin_m1)
             {
@@ -267,7 +270,11 @@ void loop() {
             {
               snprintf(buffer, 21, "Robot36: %ux%u", modes[mode].width, last_pixel_y+1);
             }
-            display->drawString(320-(21*6), 240-8, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK);
+            // display->drawString(320-(21*6), 240-8, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK); //bottom right
+            // display->drawString(1, 240-8, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK); //bottom left
+            display->drawString(320-(21*6), 1, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK); //top right
+            // display->drawString(1, 1, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK); //top left
+
             Serial.println(buffer);
 
           }
@@ -324,6 +331,5 @@ void configure_display()
   display->clear();
   draw_splash_screen();
 }
-
 
 
