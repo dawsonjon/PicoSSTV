@@ -14,8 +14,14 @@ enum e_mode
   pd_90,
   pd_120,
   pd_180,
+  sc2_60,
   sc2_120,
+  sc2_180,
+  robot24,
   robot36,
+  robot72,
+  bw8,
+  bw12,
   num_modes
 };
 

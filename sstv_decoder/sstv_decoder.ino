@@ -170,42 +170,86 @@ void loop() {
               }
               display->writeHLine(0, scaled_pixel_y*2 + 1, 320, line_rgb565);
             }
-              else if (mode == robot36) {
-                //Detect crominance phase
-                uint8_t count=0;
-                for(uint16_t x=0; x<40; ++x) {
-                  if (line_rgb[x][3]>128) count++;
-                }
+            else if (mode == bw8 || mode == bw12) {
 
-                uint8_t crc=2;
-                uint8_t cbc=1;
+              for(uint16_t x=0; x<320; ++x)
+              {
+
+                int16_t r = line_rgb[x][0];
+                int16_t g = line_rgb[x][0];
+                int16_t b = line_rgb[x][0];
+
+                line_rgb565[x] = display->colour565(r, g, b);                             
+              }
+              display->writeHLine(0, last_pixel_y*2, 320, line_rgb565);
+              display->writeHLine(0, last_pixel_y*2+1, 320, line_rgb565);
+            }
+            else if (mode == robot24 || mode == robot72) {
+
+              for(uint16_t x=0; x<320; ++x)
+              {
+                int16_t y  = line_rgb[x][0];    
+                int16_t cr = line_rgb[x][1];
+                int16_t cb = line_rgb[x][2]; 
+                
+                cr = cr - 128;
+                cb = cb - 128;
+                int16_t r = y + 45 * cr / 32;
+                int16_t g = y - (11 * cb + 23 * cr) / 32;
+                int16_t b = y + 113 * cb / 64;
+                r = r<0?0:(r>255?255:r);
+                g = g<0?0:(g>255?255:g);
+                b = b<0?0:(b>255?255:b);
+
+                
+                line_rgb565[x] = display->colour565(r, g, b);            
+              }
+              if(mode == robot24)
+              {
+                display->writeHLine(0, last_pixel_y*2, 320, line_rgb565);
+                display->writeHLine(0, last_pixel_y*2+1, 320, line_rgb565);
+              }
+              else
+              {
+                display->writeHLine(0, last_pixel_y, 320, line_rgb565);
+              }
+            }
+            else if (mode == robot36) {
+              //Detect crominance phase
+              uint8_t count=0;
+              for(uint16_t x=0; x<40; ++x) {
+                if (line_rgb[x][3]>128) count++;
+              }
+
+              uint8_t crc=2;
+              uint8_t cbc=1;
                
-                if ((count<20 && (last_pixel_y%2==0))||(count>20)&& (last_pixel_y%2==1)) {
-                  crc=1;
-                  cbc=2;
-                }
+              if ((count<20 && (last_pixel_y%2==0))||(count>20)&& (last_pixel_y%2==1)) {
+                crc=1;
+                cbc=2;
+              }
 
-                for(uint16_t x=0; x<320; ++x)
-                {
-                  int16_t y  = line_rgb[x][0];    
-                  int16_t cr = line_rgb[x][crc];
-                  int16_t cb = line_rgb[x][cbc]; 
-                  
-                  cr = cr - 128;
-                  cb = cb - 128;
-                  int16_t r = y + 45 * cr / 32;
-                  int16_t g = y - (11 * cb + 23 * cr) / 32;
-                  int16_t b = y + 113 * cb / 64;
-                  r = r<0?0:(r>255?255:r);
-                  g = g<0?0:(g>255?255:g);
-                  b = b<0?0:(b>255?255:b);
+              for(uint16_t x=0; x<320; ++x)
+              {
+                int16_t y  = line_rgb[x][0];    
+                int16_t cr = line_rgb[x][crc];
+                int16_t cb = line_rgb[x][cbc]; 
+                
+                cr = cr - 128;
+                cb = cb - 128;
+                int16_t r = y + 45 * cr / 32;
+                int16_t g = y - (11 * cb + 23 * cr) / 32;
+                int16_t b = y + 113 * cb / 64;
+                r = r<0?0:(r>255?255:r);
+                g = g<0?0:(g>255?255:g);
+                b = b<0?0:(b>255?255:b);
 
-                 line_rgb565[x] = display->colour565(r, g, b);            
+                line_rgb565[x] = display->colour565(r, g, b);            
                  
-                }
+              }
               display->writeHLine(0, last_pixel_y, 320, line_rgb565);
-            } else
-            {
+            } 
+            else {
               for(uint16_t x=0; x<320; ++x)
               {
                 line_rgb565[x] = display->colour565(line_rgb[x][0], line_rgb[x][1], line_rgb[x][2]);
@@ -246,9 +290,17 @@ void loop() {
             {
               snprintf(buffer, 21, "Scottie DX: %ux%u", modes[mode].width, last_pixel_y+1);
             }
+            else if(mode==sc2_60)
+            {
+              snprintf(buffer, 21, "SC2 60: %ux%u", modes[mode].width, last_pixel_y+1);
+            }
             else if(mode==sc2_120)
             {
               snprintf(buffer, 21, "SC2 120: %ux%u", modes[mode].width, last_pixel_y+1);
+            }
+            else if(mode==sc2_180)
+            {
+              snprintf(buffer, 21, "SC2 180: %ux%u", modes[mode].width, last_pixel_y+1);
             }
             else if(mode==pd_50)
             {
@@ -266,9 +318,25 @@ void loop() {
             {
               snprintf(buffer, 21, "PD 180: %ux%u", modes[mode].width, last_pixel_y+1);
             }
+            else if(mode==robot24)
+            {
+              snprintf(buffer, 21, "Robot24: %ux%u", modes[mode].width, last_pixel_y+1);
+            }
             else if(mode==robot36)
             {
               snprintf(buffer, 21, "Robot36: %ux%u", modes[mode].width, last_pixel_y+1);
+            }
+            else if(mode==robot72)
+            {
+              snprintf(buffer, 21, "Robot72: %ux%u", modes[mode].width, last_pixel_y+1);
+            }
+            else if(mode==bw8)
+            {
+              snprintf(buffer, 21, "bw8: %ux%u", modes[mode].width, last_pixel_y+1);
+            }
+            else if(mode==bw12)
+            {
+              snprintf(buffer, 21, "bw12: %ux%u", modes[mode].width, last_pixel_y+1);
             }
             // display->drawString(320-(21*6), 240-8, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK); //bottom right
             // display->drawString(1, 240-8, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK); //bottom left
