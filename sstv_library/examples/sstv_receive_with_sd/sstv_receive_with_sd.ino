@@ -99,6 +99,11 @@ class c_bmp_writer_stdio : public c_bmp_writer
       if(f) fwrite(data, element_size, num_elements, f);
     }
 
+    void file_seek(uint32_t offset)
+    {
+        fseek(f, offset, SEEK_SET);
+    }
+
     FILE* f;
 };
 
@@ -111,6 +116,7 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
   uint16_t tft_row_number = 0;
   const uint16_t display_width = 320;
   const uint16_t display_height = 240 - 10; //allow space for status bar
+  uint16_t image_width, image_height;
 
   //override the get_audio_sample function to read ADC audio
   int16_t get_audio_sample()
@@ -133,6 +139,10 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
   //override the image_write_line function to output images to a TFT display
   void image_write_line(uint16_t line_rgb565[], uint16_t y, uint16_t width, uint16_t height, const char* mode_string)
   {
+    //write unscaled image to bmp file
+    output_file.change_width(width);
+    output_file.change_height(y+1);
+
     //write unscaled image to bmp file
     if(++bmp_row_number < height) output_file.write_row_rgb565(line_rgb565);
 
@@ -169,23 +179,23 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
   c_bmp_writer_stdio output_file;
   uint16_t bmp_row_number = 0;
 
-  //These functions don't need to do anything when accessing a TFT display
-  void image_open(const char* bmp_file_name, uint16_t width, uint16_t height, const char* mode_string){
+  public:
+
+  void open(const char* bmp_file_name){
     tft_row_number = 0;
     bmp_row_number = 0;
     Serial.print("opening bmp file: ");
     Serial.println(bmp_file_name);
-    output_file.open(bmp_file_name, width, height);
+    output_file.open(bmp_file_name, 10, 10); //image size gets updated later
   }
 
-  void image_close(){
+  void close(){
     tft_row_number = 0;
     bmp_row_number = 0;
     Serial.println("closing bmp file");
+    output_file.update_header();
     output_file.close();
   }
-
-  public:
 
   void start(){adc_audio.begin(28, 15000);}
   void stop(){adc_audio.end();}
@@ -208,14 +218,22 @@ void setup() {
 
 void loop() {
   c_sstv_decoder_fileio sstv_decoder(15000);
+  sstv_decoder.start();
+  sstv_decoder.open("temp");
+  char filename[100];
+  get_new_filename(filename, 100);
+
   while(1)
   {
-    sstv_decoder.start();
-    char filename[100];
+    sstv_decoder.decode_image(LOST_SIGNAL_TIMEOUT_SECONDS, ENABLE_SLANT_CORRECTION);
+    sstv_decoder.close();
+    SDFS.rename("temp", filename);
+    Serial.print("copy to: ");
+    Serial.println(filename);
     get_new_filename(filename, 100);
-    sstv_decoder.decode_image(filename, LOST_SIGNAL_TIMEOUT_SECONDS, ENABLE_SLANT_CORRECTION);
-    sstv_decoder.stop();
+    sstv_decoder.open("temp");
   }
+  sstv_decoder.stop();
 }
 
 void draw_splash_screen()

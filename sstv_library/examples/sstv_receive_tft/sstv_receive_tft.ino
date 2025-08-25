@@ -107,8 +107,6 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
   void image_write_line(uint16_t line_rgb565[], uint16_t y, uint16_t width, uint16_t height, const char* mode_string)
   {
 
-    Serial.println(y);
-
     //scale image to fit TFT size
     uint16_t scaled_row[display_width];
     uint16_t pixel_number = 0;
@@ -123,7 +121,6 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
         }
     }
 
-    Serial.println(row_number);
     uint32_t scaled_y = static_cast<uint32_t>(y) * display_height / height;
     while(row_number < scaled_y)
     {
