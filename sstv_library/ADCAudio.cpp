@@ -1,5 +1,6 @@
 #include "ADCAudio.h"
 #include <stdio.h>
+#include <Arduino.h>
 
 ADCAudio ::ADCAudio()
 {
@@ -45,8 +46,10 @@ void ADCAudio::begin(const uint8_t audio_pin, const uint32_t audio_sample_rate)
 // samples is a reference to a buffer containing block size samples
 int16_t * ADCAudio ::input_samples() {
     
+  uint32_t start = time_us_32();
   // wait for ping transfer to complete
   dma_channel_wait_for_finish_blocking(adc_dma);
+  uint32_t duration = time_us_32() - start;
     
   // start a transfer into pong buffer for next time
   dma_channel_configure(adc_dma, &cfg, samples[buffer_number^1], &adc_hw->fifo, 4096, true);

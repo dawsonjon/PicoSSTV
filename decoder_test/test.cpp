@@ -17,6 +17,11 @@ class c_bmp_writer_stdio : public c_bmp_writer
         fclose(f);
     }
 
+    void file_seek(uint32_t offset)
+    {
+        fseek(f, offset, SEEK_SET);
+    }
+
     void file_write(const void* data, uint32_t element_size, uint32_t num_elements)
     {
         fwrite(data, element_size, num_elements, f);
@@ -42,28 +47,23 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
 
   void image_write_line(uint16_t line_rgb565[], uint16_t y, uint16_t width, uint16_t height, const char * mode_name)
   {
+    bitmap.change_width(width);
+    bitmap.change_height(height);
     bitmap.write_row_rgb565(line_rgb565);
-  }
-
-  void image_open(const char* bmp_file_name, uint16_t width, uint16_t height, const char * mode_name)
-  {
-    bitmap.open(bmp_file_name, width, height);
-  }
-
-  void image_close()
-  {
-    bitmap.close();
   }
 
   public:
 
-  void open(const char * pcm_file_name)
+  void open(const char * pcm_file_name, const char *bmp_file_name)
   {
     pcm = fopen(pcm_file_name, "rb");
+    bitmap.open(bmp_file_name, 10, 10); //set real values later
   }
   void close()
   {
     fclose(pcm);
+    bitmap.update_header();
+    bitmap.close();
   }
   c_sstv_decoder_fileio(float fs) : c_sstv_decoder{fs}
   {
@@ -81,8 +81,8 @@ int main(int argc, char ** argv)
   }
   c_sstv_decoder_fileio sstv_decoder(15000);
   printf("%s\n", argv[1]);
-  sstv_decoder.open(argv[1]);
-  sstv_decoder.decode_image(argv[2], 30, true);
+  sstv_decoder.open(argv[1], argv[2]);
+  sstv_decoder.decode_image(30, true);
   sstv_decoder.close();
   return 0;
 

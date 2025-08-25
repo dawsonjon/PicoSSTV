@@ -9,6 +9,9 @@ class c_bmp_writer
   void open(const char* filename, uint16_t width, uint16_t height);
   void close();
   void write_row_rgb565(uint16_t* rgb565_data);
+  void change_width(uint16_t width);
+  void change_height(uint16_t height);
+  void update_header();
 
   private:
   uint16_t m_width;
@@ -20,6 +23,8 @@ class c_bmp_writer
   virtual bool file_open(const char* filename)=0;
   virtual void file_close()=0;
   virtual void file_write(const void* data, uint32_t element_size, uint32_t num_elements)=0;
+  virtual void file_seek(uint32_t offset)=0;
+
 };
 
 class c_bmp_reader

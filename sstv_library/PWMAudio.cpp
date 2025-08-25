@@ -1,5 +1,4 @@
 #include "PWMAudio.h"
-#include <Arduino.h>
 
 PWMAudio ::PWMAudio() {
 }
@@ -47,6 +46,5 @@ void PWMAudio ::output_samples(const uint16_t samples[], const uint16_t len) {
                         true);
   uint32_t block_time_us = (uint32_t)len * 1000000/15000;
   uint32_t busy_time_us = block_time_us - idle_time_us;
-  //Serial.println(100.0*busy_time_us/block_time_us);
 
 }

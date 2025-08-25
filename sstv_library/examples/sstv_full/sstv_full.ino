@@ -73,20 +73,20 @@
 #define INVERT_DISPLAY false
 //#define INVERT_DISPLAY true
 
-#define ENABLE_SLANT_CORRECTION true
-//#define ENABLE_SLANT_CORRECTION false
-
 //END OF CONFIGURATION SECTION
 ///////////////////////////////////////////////////////////////////////////////
 
 void draw_banner(const char* message);
 void draw_status_bar(const char* message);
+void draw_button_bar(const char* btn1, const char* btn2, const char* btn3, const char* btn4);
 void configure_display();
 void initialise_sdcard();
 void get_new_filename(char *buffer, uint16_t buffer_size);
-void update_slideshow();
 void display_image(const char* filename);
 void get_timeout_seconds(const char* title, uint8_t & menu_selection);
+void launch_menu();
+uint16_t count_bitmaps(Dir &root);
+void get_bitmap_index(Dir &root, uint16_t index);
 
 ILI934X *display;
 #define DISPLAY_WIDTH 320
@@ -103,11 +103,13 @@ struct s_settings {
   uint8_t slideshow_timeout;
   uint8_t lost_signal_timeout;
   uint8_t transmit_mode;
+  uint8_t auto_slant_correction;
 };
 s_settings settings = {
   3, //5 seconds
   5,  //30 seconds
-  1
+  1, //martin m2
+  1 //auto slant correction on
 };
 
 class c_bmp_writer_stdio : public c_bmp_writer
@@ -126,6 +128,11 @@ class c_bmp_writer_stdio : public c_bmp_writer
     void file_write(const void* data, uint32_t element_size, uint32_t num_elements)
     {
       if(f) fwrite(data, element_size, num_elements, f);
+    }
+
+    void file_seek(uint32_t offset)
+    {
+        fseek(f, offset, SEEK_SET);
     }
 
     FILE* f;
@@ -190,6 +197,8 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
   void image_write_line(uint16_t line_rgb565[], uint16_t y, uint16_t width, uint16_t height, const char* mode_string)
   {
     //write unscaled image to bmp file
+    output_file.change_width(width);
+    output_file.change_height(y+1);
     if(++bmp_row_number < height) output_file.write_row_rgb565(line_rgb565);
 
     //scale image to fit TFT size
@@ -225,24 +234,24 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
   c_bmp_writer_stdio output_file;
   uint16_t bmp_row_number = 0;
 
-  //These functions don't need to do anything when accessing a TFT display
-  void image_open(const char* bmp_file_name, uint16_t width, uint16_t height, const char* mode_string){
+  public:
+
+  void open(const char* bmp_file_name){
     tft_row_number = 0;
     bmp_row_number = 0;
     Serial.print("opening output bmp file: ");
     Serial.println(bmp_file_name);
-    output_file.open(bmp_file_name, width, height);
+    output_file.open(bmp_file_name, 10, 10);
   }
 
-  void image_close(){
+  void close(){
     tft_row_number = 0;
     bmp_row_number = 0;
     Serial.println("closing bmp file");
-    draw_status_bar("RX Complete!");
+    draw_button_bar("Menu", "", "", "");
+    output_file.update_header();
     output_file.close();
   }
-
-  public:
 
   void start(){adc_audio.begin(28, 15000);}
   void stop(){adc_audio.end();}
@@ -290,7 +299,7 @@ class c_sstv_encoder_pwm : public c_sstv_encoder
     {
       bitmap.read_row_rgb565(row);
       row_number++;
-      draw_status_bar("   Cancel   ");
+      draw_button_bar("Cancel", "", "", "");
       char status[100];
       snprintf(status, 100, "transmitting %u/%u (%u%%)", y+1, height, (100*(y+1))/height);
       draw_banner(status);
@@ -306,7 +315,7 @@ class c_sstv_encoder_pwm : public c_sstv_encoder
   c_bmp_reader_stdio bitmap;
   FILE *pcm;
   uint16_t row_number = 0;
-  uint16_t row[320];
+  uint16_t row[640];
   uint16_t image_width, image_height;
   
   public:
@@ -326,6 +335,82 @@ class c_sstv_encoder_pwm : public c_sstv_encoder
 
 };
 
+class c_slideshow
+{
+
+  private:
+
+  bool redraw = false;
+  Dir root;
+  uint16_t num_bitmaps = 0;
+  uint16_t bitmap_index = 0;
+  String filename;
+  uint32_t last_update_time = 0;
+
+  public:
+  void launch_slideshow()
+  {
+    root = SDFS.openDir("/");
+    num_bitmaps = count_bitmaps(root);
+    bitmap_index = 0;
+    last_update_time = 0;
+  }
+
+  void update_slideshow()
+  {
+    if(num_bitmaps == 0) return;
+    bool redraw = false;
+    
+    static const uint16_t timeouts[] = {0, 1, 2, 5, 10, 30, 60, 60*2, 60*5};
+    uint16_t timeout_milliseconds = 1000 * timeouts[settings.slideshow_timeout];
+    
+    if(((millis() - last_update_time) > timeout_milliseconds) && (timeout_milliseconds != 0))
+    {
+      last_update_time = millis();
+      if(bitmap_index == num_bitmaps-1) bitmap_index = 0;
+      else bitmap_index++;
+      redraw = true;
+    }
+
+    if(button_right.is_pressed())
+    {
+      get_bitmap_index(root, bitmap_index);
+      filename = root.fileName();
+      SDFS.remove(filename);
+      bitmap_index = std::min((int)bitmap_index, num_bitmaps-2);
+      root = SDFS.openDir("/");
+      num_bitmaps--;
+      if(num_bitmaps == 0) return;
+      redraw = true;
+    }
+
+    if(button_up.is_pressed())
+    {
+      if(bitmap_index == num_bitmaps-1) bitmap_index = 0;
+      else bitmap_index++;
+      redraw = true;
+    }
+
+    if(button_down.is_pressed())
+    {
+      if(bitmap_index == 0) bitmap_index = num_bitmaps-1;
+      else bitmap_index--;
+      redraw = true;
+    }
+
+    if(redraw)
+    {
+      get_bitmap_index(root, bitmap_index);
+      filename = root.fileName();
+      Serial.println(filename);
+      display_image(filename.c_str());
+      uint16_t width = strlen(filename.c_str())*6+10;
+      draw_banner(filename.c_str());
+      draw_button_bar("Menu", "Delete", "Last", "Next");
+    }
+  }
+};
+
 void setup() {
   Serial.begin(115200);
 
@@ -343,32 +428,43 @@ void setup() {
 void loop() {
   c_sstv_decoder_fileio sstv_decoder(15000);
   sstv_decoder.start();
+  sstv_decoder.open("temp");
   char rx_filename[100];
   get_new_filename(rx_filename, 100);
+  c_slideshow slideshow;
 
   bool image_in_progress = false;
   bool image_complete = false;
-  e_view_mode view_mode = slideshow_mode;
+  e_view_mode view_mode = rx_mode;
 
   while(1){
     
     //process rx regardless of mode
     static const uint16_t timeouts[] = {UINT16_MAX, 1, 2, 5, 10, 30, 60, 60*2, 60*5};
     const uint16_t timeout_seconds = timeouts[settings.lost_signal_timeout];
-    image_complete = sstv_decoder.decode_image_non_blocking(rx_filename, timeout_seconds, ENABLE_SLANT_CORRECTION, image_in_progress);
-    if(image_complete) get_new_filename(rx_filename, 100);
+    image_complete = sstv_decoder.decode_image_non_blocking(timeout_seconds, settings.auto_slant_correction, image_in_progress);
+    if(image_complete)
+    {
+      sstv_decoder.close();
+      SDFS.rename("temp", rx_filename);
+      get_new_filename(rx_filename, 100);
+      sstv_decoder.open("temp");
+    } 
     if(image_in_progress)
     {
       view_mode = rx_mode;
     }
     else
     {
-      if(button_left.is_pressed()) launch_menu(view_mode);
+      if(button_left.is_pressed()){
+        launch_menu(view_mode);
+        if(view_mode == slideshow_mode) slideshow.launch_slideshow();
+      }
     }
     
     if(view_mode == slideshow_mode)
     {
-      update_slideshow();
+      slideshow.update_slideshow();
     }
 
   }
@@ -455,68 +551,32 @@ void draw_status_bar(const char* message)
   #define MARGIN ((STATUS_BAR_HEIGHT - 8)/2)
   display->drawString(MARGIN, DISPLAY_HEIGHT-STATUS_BAR_HEIGHT+MARGIN, font_8x5, message, COLOUR_WHITE, COLOUR_BLACK);
 }
-
-void update_slideshow()
+void draw_button_bar(const char* btn1, const char* btn2, const char* btn3, const char* btn4)
 {
-  bool redraw = false;
-  uint16_t filename_size = 100;
-  char filename[filename_size];
-  static uint16_t serial_number = 0;
+  display->fillRect(0, DISPLAY_HEIGHT-STATUS_BAR_HEIGHT-1, STATUS_BAR_HEIGHT, DISPLAY_WIDTH, COLOUR_BLACK);
   
-  static const uint16_t timeouts[] = {0, 1, 2, 5, 10, 30, 60, 60*2, 60*5};
-  uint16_t timeout_milliseconds = 1000 * timeouts[settings.slideshow_timeout];
-  static uint32_t last_update_time = 0;
-  if(((millis() - last_update_time) > timeout_milliseconds) && (timeout_milliseconds != 0))
-  {
-    last_update_time = millis();
-    serial_number++;
-    snprintf(filename, filename_size, "sstv_rx_%u.bmp", serial_number);
-    if(!SDFS.exists(filename)) serial_number = 0;
-    snprintf(filename, filename_size, "sstv_rx_%u.bmp", serial_number);
-    if(!SDFS.exists(filename)) return;
-    redraw = true;
-  }
+  const uint16_t button_width = 60;
+  const uint16_t button_height = 14;
+  const uint16_t padding = (DISPLAY_WIDTH - (4*button_width))/5;
 
-  if(button_up.is_pressed())
-  {
-    last_update_time = millis();
-    serial_number++;
-    snprintf(filename, filename_size, "sstv_rx_%u.bmp", serial_number);
-    if(!SDFS.exists(filename)) serial_number = 0;
-    snprintf(filename, filename_size, "sstv_rx_%u.bmp", serial_number);
-    if(!SDFS.exists(filename)) return;
-    redraw = true;
-  }
-
-  if(button_down.is_pressed())
-  {
-    last_update_time = millis();
-    if(serial_number == 0)
-    {
-      
-      //first file doesn't exit so quit
-      snprintf(filename, filename_size, "sstv_rx_%u.bmp", serial_number);
-      if(!SDFS.exists(filename)) return;
-      
-      //find the first filename that doesn't exist
-      do
-      {
-        snprintf(filename, filename_size, "sstv_rx_%u.bmp", ++serial_number);
-      } while(SDFS.exists(filename));
-
-    }
-    snprintf(filename, filename_size, "sstv_rx_%u.bmp", --serial_number);
-    redraw = true;
-  }
-
-  if(redraw)
-  {
-    display_image(filename);
-    uint16_t width = strlen(filename)*6+10;
-    draw_banner(filename);
-    draw_status_bar("     Menu                <- Previous      Next ->  ");
-  }
+  uint16_t button_x = padding;
+  display->fillRoundedRect(button_x, DISPLAY_HEIGHT-STATUS_BAR_HEIGHT+2, button_height, button_width, 3, COLOUR_BLUE);
+  display->drawRoundedRect(button_x, DISPLAY_HEIGHT-STATUS_BAR_HEIGHT+2, button_height, button_width, 3, COLOUR_WHITE);
+  display->drawString(button_x + ((button_width-(6*strlen(btn1)))/2), DISPLAY_HEIGHT-STATUS_BAR_HEIGHT+MARGIN, font_8x5, btn1, COLOUR_WHITE, COLOUR_BLUE);
+  button_x += button_width + padding;
+  display->fillRoundedRect(button_x, DISPLAY_HEIGHT-STATUS_BAR_HEIGHT+2, button_height, button_width, 3, COLOUR_BLUE);
+  display->drawRoundedRect(button_x, DISPLAY_HEIGHT-STATUS_BAR_HEIGHT+2, button_height, button_width, 3, COLOUR_WHITE);
+  display->drawString(button_x + ((button_width-(6*strlen(btn2)))/2), DISPLAY_HEIGHT-STATUS_BAR_HEIGHT+MARGIN, font_8x5, btn2, COLOUR_WHITE, COLOUR_BLUE);
+  button_x += button_width + padding;
+  display->fillRoundedRect(button_x, DISPLAY_HEIGHT-STATUS_BAR_HEIGHT+2, button_height, button_width, 3, COLOUR_BLUE);
+  display->drawRoundedRect(button_x, DISPLAY_HEIGHT-STATUS_BAR_HEIGHT+2, button_height, button_width, 3, COLOUR_WHITE);
+  display->drawString(button_x + ((button_width-(6*strlen(btn3)))/2), DISPLAY_HEIGHT-STATUS_BAR_HEIGHT+MARGIN, font_8x5, btn3, COLOUR_WHITE, COLOUR_BLUE);
+  button_x += button_width + padding; 
+  display->fillRoundedRect(button_x, DISPLAY_HEIGHT-STATUS_BAR_HEIGHT+2, button_height, button_width, 3, COLOUR_BLUE);
+  display->drawRoundedRect(button_x, DISPLAY_HEIGHT-STATUS_BAR_HEIGHT+2, button_height, button_width, 3, COLOUR_WHITE);
+  display->drawString(button_x + ((button_width-(6*strlen(btn4)))/2), DISPLAY_HEIGHT-STATUS_BAR_HEIGHT+MARGIN, font_8x5, btn4, COLOUR_WHITE, COLOUR_BLUE);
 }
+
 
 uint16_t count_bitmaps(Dir &root)
 {
@@ -529,6 +589,7 @@ uint16_t count_bitmaps(Dir &root)
   }
   return count;
 }
+
 
 void get_bitmap_index(Dir &root, uint16_t index)
 {
@@ -591,7 +652,7 @@ void tx_file_browser()
       Serial.println(filename);
       display_image(filename.c_str());
       draw_banner(filename.c_str());
-      draw_status_bar("  Transmit      Cancel   <- Previous       Next ->");
+      draw_button_bar("Transmit", "Cancel", "Last", "Next");
       redraw = false;
     }
 
@@ -653,7 +714,7 @@ void launch_menu(e_view_mode &view_mode)
 {
   uint8_t menu_selection = 0;
   const char * const menu_selections[] = {
-    "Recieve",
+    "Receive",
     "Transmit",
     "Slideshow",
     "Settings"
@@ -663,8 +724,8 @@ void launch_menu(e_view_mode &view_mode)
   if(menu_selection == 0)
   {
     view_mode = rx_mode;
-    display->clear(COLOUR_NAVY);
-    draw_status_bar("RX waiting...");
+    draw_splash_screen();
+    draw_button_bar("Menu", "", "", "");
     return;
   }
   else if(menu_selection == 1)
@@ -675,8 +736,6 @@ void launch_menu(e_view_mode &view_mode)
   else if(menu_selection == 2)
   {
     view_mode = slideshow_mode;
-    display->clear(COLOUR_NAVY);
-    draw_status_bar("Slideshow");
     return;
   }
   else
@@ -692,7 +751,12 @@ void launch_menu(e_view_mode &view_mode)
     {
       if(menu_selection == 0)//Auto slant correction
       {
-
+        uint8_t menu_selection = 0;
+        const char * const menu_selections[] = {
+          "Off",
+          "On"
+        };
+        menu("Auto Slant Correction", settings.auto_slant_correction, menu_selections, 2);
       }
       else if(menu_selection == 1)//lost signal timeout
       {
@@ -770,6 +834,7 @@ bool menu(const char* title, uint8_t &selection, const char * const menu_items[]
       draw = true;
     }
     
+    Serial.println(button_left.is_pressed());
     //ok
     if(button_left.is_pressed())
     {

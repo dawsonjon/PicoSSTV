@@ -64,6 +64,55 @@ void c_bmp_writer :: open(const char* filename, uint16_t width, uint16_t height)
 
 }
 
+//Usually width and height should be set when opening, but in SSTV applications, it might be necassary
+//to open the file ahead of time, then change the width only after the mode has been determined. This
+//must still be done before writing the first row.
+void c_bmp_writer :: change_width(uint16_t width)
+{
+    m_width = width;
+    m_width_padded = (width * 3 + 3) & ~3;
+    m_image_size = m_width_padded * m_height;
+
+}
+
+//It might also be helpful to change the height after the file is opened, we can't tell how many rows
+//we will be sent ahead of time. The height can be changed any time before the file is closed.
+void c_bmp_writer :: change_height(uint16_t height)
+{
+    m_height = height;
+    m_image_size = m_width_padded * height;
+}
+
+//If the width or height change, it will be necassary to update the file header
+void c_bmp_writer :: update_header()
+{
+    BMPFileHeader file_header = {
+        .bfType = 0x4D42,
+        .bfSize = static_cast<uint32_t>(sizeof(BMPFileHeader) + sizeof(BMPInfoHeader) + m_image_size),
+        .bfReserved1 = 0,
+        .bfReserved2 = 0,
+        .bfOffBits = sizeof(BMPFileHeader) + sizeof(BMPInfoHeader),
+    };
+
+    BMPInfoHeader info_header = {
+        .biSize = sizeof(BMPInfoHeader),
+        .biWidth = m_width,
+        .biHeight = -(int32_t)m_height,
+        .biPlanes = 1,
+        .biBitCount = 24,
+        .biCompression = 0,
+        .biSizeImage = m_image_size,
+        .biXPelsPerMeter = 0x0B13,
+        .biYPelsPerMeter = 0x0B13,
+        .biClrUsed = 0,
+        .biClrImportant = 0,
+    };
+
+    file_seek(0);
+    file_write(&file_header, sizeof(file_header), 1);
+    file_write(&info_header, sizeof(info_header), 1);
+}
+
 void c_bmp_writer :: close() 
 {
     file_close();

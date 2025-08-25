@@ -1,5 +1,17 @@
 g++ -Wall ../sstv_library/sstv_decoder.cpp ../sstv_library/cordic.cpp ../sstv_library/half_band_filter2.cpp ../sstv_library/bmp_lib.cpp test.cpp -o test
 rm *.bmp
+./test ../test_files/test_sc2120.wav output0a.bmp
+./test ../test_files/test_sc2180.wav output1a.bmp
+./test ../test_files/test_scottiedx.wav output2a.bmp
+./test ../test_files/test_robot36.wav output3a.bmp
+./test ../test_files/test_pd90.wav output4a.bmp
+./test ../test_files/test_pd120.wav output5a.bmp
+./test ../test_files/test_pd180.wav output6a.bmp
+./test ../test_files/test_martinm1.wav output7a.bmp
+./test ../test_files/test_martinm2.wav output8a.bmp
+./test ../test_files/test_scottieS1.wav output9a.bmp
+./test ../test_files/test_scottieS2.wav output10a.bmp
+./test ../test_files/test_8bm.wav output11a.bmp
 ./test ../test_files/PD120.wav output0.bmp
 ./test ../test_files/PD90.wav output1.bmp
 ./test ../test_files/SSTV_sunset_audio.wav output2.bmp

@@ -21,12 +21,20 @@ enum e_mode
   martin_m1, 
   martin_m2, 
   scottie_s1, 
-  scottie_s2, 
+  scottie_s2,
+  scottie_dx,
   pd_50,
   pd_90,
   pd_120,
   pd_180,
+  sc2_60,
   sc2_120,
+  sc2_180,
+  robot24,
+  robot36,
+  robot72,
+  bw8,
+  bw12,
   num_modes
 };
 
@@ -91,7 +99,7 @@ class c_sstv_decoder
   uint32_t m_timeout;
   bool m_image_open_flag = false;
   bool m_image_complete_flag = false;
-  uint8_t m_line[640][4]; //array to contain seperate colour components of each decoded line
+  uint8_t m_line[640][5]; //array to contain seperate colour components of each decoded line
 
   void decode_sample(uint16_t sample, uint16_t &pixel_y, uint16_t &pixel_x, uint8_t &pixel_colour, uint8_t &pixel, bool &pixel_complete, bool &line_complete, bool &image_complete);
 
@@ -108,13 +116,11 @@ class c_sstv_decoder
 
   //Override this function to output a line of image
   virtual void image_write_line(uint16_t line_rgb565[], uint16_t y, uint16_t width, uint16_t height, const char* mode_string) = 0;
-  virtual void image_open(const char* filename, uint16_t width, uint16_t height, const char* mode_string) = 0;
-  virtual void image_close() = 0;
 
   public:
   c_sstv_decoder(float Fs);
-  void decode_image(const char* image_filename, uint8_t timeout_s, bool slant_correction);
-  bool decode_image_non_blocking(const char* image_filename, uint8_t timeout_s, bool slant_correction, bool & image_in_progress);
+  void decode_image(uint8_t timeout_s, bool slant_correction);
+  bool decode_image_non_blocking(uint8_t timeout_s, bool slant_correction, bool & image_in_progress);
 
 };
 

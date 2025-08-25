@@ -46,17 +46,17 @@
 //#define ROTATION R0DEG
 //#define ROTATION R90DEG
 //#define ROTATION R180DEG
-//#define ROTATION R270DEG
+#define ROTATION R270DEG
 //#define ROTATION MIRRORED0DEG
 //#define ROTATION MIRRORED90DEG
 //#define ROTATION MIRRORED180DEG
-#define ROTATION MIRRORED270DEG
+//#define ROTATION MIRRORED270DEG
 
 //The splash screen should have blue lettering, if you see red lettering 
 //try changing the INVERT_COLOURS setting.
 
-#define INVERT_COLOURS false
-//#define INVERT_COLOURS true
+//#define INVERT_COLOURS false
+#define INVERT_COLOURS true
 
 //The splash screen should have a black background, if you have a white
 //background try changing this setting. Many thans to ON4ABR for adding 
@@ -107,6 +107,8 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
   void image_write_line(uint16_t line_rgb565[], uint16_t y, uint16_t width, uint16_t height, const char* mode_string)
   {
 
+    Serial.println(y);
+
     //scale image to fit TFT size
     uint16_t scaled_row[display_width];
     uint16_t pixel_number = 0;
@@ -121,6 +123,7 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
         }
     }
 
+    Serial.println(row_number);
     uint32_t scaled_y = static_cast<uint32_t>(y) * display_height / height;
     while(row_number < scaled_y)
     {
@@ -133,17 +136,13 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
     char buffer[21];
     snprintf(buffer, 21, "%10s: %ux%u", mode_string, width, y+1);
     display->drawString(0, display_height+2, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK);
-    Serial.println(buffer);
+    //Serial.println(buffer);
 
   }
 
-  //These functions don't need to do anything when accessing a TFT display
-  void image_open(const char* bmp_file_name, uint16_t width, uint16_t height, const char* mode_string){row_number = 0;}
-  void image_close(){row_number = 0;}
-
   public:
 
-  void start(){adc_audio.begin(28, 15000);}
+  void start(){adc_audio.begin(28, 15000); row_number = 0;}
   void stop(){adc_audio.end();}
   c_sstv_decoder_fileio(float fs) : c_sstv_decoder{fs}{}
 
@@ -162,7 +161,7 @@ void loop() {
   while(1)
   {
     sstv_decoder.start();
-    sstv_decoder.decode_image("", LOST_SIGNAL_TIMEOUT_SECONDS, ENABLE_SLANT_CORRECTION);
+    sstv_decoder.decode_image(LOST_SIGNAL_TIMEOUT_SECONDS, ENABLE_SLANT_CORRECTION);
     sstv_decoder.stop();
   }
 }

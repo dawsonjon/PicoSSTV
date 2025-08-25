@@ -125,15 +125,15 @@ void ILI934X::configure_st7796()
   sleep_ms(120);
   
   //Command Set control
-	_write(0xF0, (uint8_t *)"\xC3", 1);//Enable extension command 2 partI                               
-	_write(0xF0, (uint8_t *)"\x96", 1);//Enable extension command 2 partII                               
+  _write(0xF0, (uint8_t *)"\xC3", 1);//Enable extension command 2 partI                               
+  _write(0xF0, (uint8_t *)"\x96", 1);//Enable extension command 2 partII                               
   _write(0x36, (uint8_t *)"\x48", 1);
 
   //Interface Pixel Format
   _write(_PIXSET, (uint8_t *)"\x55", 1);//Control interface color format set to 16 
 	
   //Column inversion
-	_write(0xB4, (uint8_t *)"\x01", 1);//1-dot inversion 
+  _write(0xB4, (uint8_t *)"\x01", 1);//1-dot inversion 
 
   //Display Function Control
   _write(_DISCTRL, (uint8_t *)"\x80\x02\x3B", 3);//1-dot inversion 
@@ -150,9 +150,9 @@ void ILI934X::configure_st7796()
   //VCOM Control
   _write(_VMCTRL1, (uint8_t *)"\x18", 1);
 
-	sleep_ms(120);
+  sleep_ms(120);
 	
-	//ST7796 Gamma Sequence
+  //ST7796 Gamma Sequence
   _write(_PGAMCTRL, (uint8_t *)"\xF0\x09\x0b\x06\x04\x15\x2f\x54\x42\x3c\x17\x14\x18\x1b", 14); 
   _write(_NGAMCTRL, (uint8_t *)"\xE0\x09\x0B\x06\x04\x03\x2B\x43\x42\x3B\x16\x14\x17\x1B", 14);
 
@@ -558,9 +558,9 @@ void ILI934X::_writePixels(const uint16_t *data, size_t numPixels)
   }
 }
 
+
 void ILI934X::_writeBlock(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint8_t *data, size_t dataLen)
 {
-
     uint16_t buffer[2];
     buffer[0] = __builtin_bswap16(x0);
     buffer[1] = __builtin_bswap16(x1);
@@ -571,8 +571,7 @@ void ILI934X::_writeBlock(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, ui
     buffer[1] = __builtin_bswap16(y1);
 
     _write(_PASET, (uint8_t *)buffer, 4);
-    _write(_RAMWR, data, dataLen);  
-
+    _write(_RAMWR, data, dataLen);
 }
 
 uint16_t ILI934X::colour565(uint8_t r, uint8_t g, uint8_t b)

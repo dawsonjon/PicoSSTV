@@ -60,7 +60,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define _PRCTRL 0xf7    // Pump Ratio Control
 #define _PWCTRL1 0xc0   // Power Control 1
 #define _PWCTRL2 0xc1   // Power Control 2
-#define _PWCTRL3 0xc2   // Power Control 2
+#define _PWCTRL3 0xc2   // Power Control 3
 #define _VMCTRL1 0xc5   // VCOM Control 1
 #define _VMCTRL2 0xc7   // VCOM Control 2
 #define _FRMCTR1 0xb1   // Frame Rate Control 1
@@ -168,7 +168,6 @@ private:
     void _write(uint8_t cmd, uint8_t *data = NULL, size_t dataLen = 0);
     void _writePixels(const uint16_t *data, size_t dataLen);
     void _data(uint8_t *data, size_t dataLen = 0);
-    
     uint32_t dma_tx;
     dma_channel_config dma_config;
     
