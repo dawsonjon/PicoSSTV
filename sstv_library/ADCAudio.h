@@ -2,9 +2,13 @@
 #define ADC_AUDIO_H
 
 #include <stdio.h>
+
+#ifdef WIO_TERMINAL
+#include "Adafruit_ZeroDMA.h"
+#else
 #include "hardware/adc.h"
 #include "hardware/dma.h"
-
+#endif
 
 class ADCAudio
 {
@@ -17,9 +21,11 @@ class ADCAudio
 
     private:
     int adc_dma;
+#ifndef WIO_TERMINAL
     dma_channel_config cfg;
-    uint16_t samples[2][4096];
-    uint8_t buffer_number = 0;
+	uint8_t buffer_number = 0;
+#endif
+    uint16_t samples[2][4096]; 
     uint16_t dc = 0;
 };
 

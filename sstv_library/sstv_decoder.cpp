@@ -54,22 +54,26 @@ void c_sstv_decoder :: sample_to_pixel(uint16_t &x, uint16_t &y, uint8_t &colour
     }
     y = image_sample/mean_samples_per_line;
     image_sample -= y*mean_samples_per_line;
-   
-    //Double duration of y channel
-    if (image_sample<static_cast<int32_t>(modes[decode_mode].samples_per_colour_line*2))
-    {
-      colour = 0; 
-      x = image_sample/(modes[decode_mode].samples_per_pixel*2);
-    } else if (image_sample<static_cast<int32_t>(modes[decode_mode].samples_per_colour_line*2+modes[robot36].samples_per_colour_gap)) {
-      //For detecting 2300 or 1500 sync
-      colour=3;
-      x=(image_sample-modes[decode_mode].samples_per_colour_line*2)/modes[decode_mode].samples_per_pixel;
-    } else if (image_sample>static_cast<int32_t>(modes[decode_mode].samples_per_colour_line*2+modes[robot36].samples_per_colour_gap)) {
-      //Alternatively channel 1 (cr) and 2 (cb)    
-      colour = 1+(y%2);
-      image_sample -=modes[decode_mode].samples_per_colour_line*2+modes[robot36].samples_per_colour_gap; 
-      x = image_sample/(modes[decode_mode].samples_per_pixel);
-    } 
+	if (bw_mode == false) {
+		//Double duration of y channel
+		if (image_sample<static_cast<int32_t>(modes[decode_mode].samples_per_colour_line*2))
+		{
+		  colour = 0; 
+		  x = image_sample/(modes[decode_mode].samples_per_pixel*2);
+		} else if (image_sample<static_cast<int32_t>(modes[decode_mode].samples_per_colour_line*2+modes[robot36].samples_per_colour_gap)) {
+		  //For detecting 2300 or 1500 sync
+		  colour=3;
+		  x=(image_sample-modes[decode_mode].samples_per_colour_line*2)/modes[decode_mode].samples_per_pixel;
+		} else if (image_sample>static_cast<int32_t>(modes[decode_mode].samples_per_colour_line*2+modes[robot36].samples_per_colour_gap)) {
+		  //Alternatively channel 1 (cr) and 2 (cb)    
+		  colour = 1+(y%2);
+		  image_sample -=modes[decode_mode].samples_per_colour_line*2+modes[robot36].samples_per_colour_gap; 
+		  x = image_sample/(modes[decode_mode].samples_per_pixel);
+		} 
+	} else {
+		colour = 0;
+		x = image_sample/(modes[decode_mode].samples_per_pixel*3);
+	}
   }
   else if(decode_mode == robot24 || decode_mode == robot72)
   {
@@ -889,33 +893,51 @@ bool c_sstv_decoder :: decode_image_non_blocking(uint8_t timeout_s, bool slant_c
       image_write_line(line_rgb565, pixel_y, modes[decode_mode].width, modes[decode_mode].max_height, modes[decode_mode].mode_string);
     
     }
-    else if (decode_mode == robot36) {
+    else if (decode_mode == robot36 && bw_mode == false) {
+		
       //Detect crominance phase
-      uint8_t count=0;
-      for(uint16_t x=0; x<40; ++x) {
-        if (m_line[x][3]>128) count++;
+	  bool sync = false;
+      uint8_t count = 0;
+	  
+      for(uint16_t x = 0; x < 40; ++x) {
+        if (m_line[x][3] > 128) count++;
       }
 
-      uint8_t crc=2;
-      uint8_t cbc=1;
-       
-      if ((count<20 && (pixel_y%2==0)) || ((count>20) && (pixel_y%2==1))) {
-        crc=1;
-        cbc=2;
-      }
+	  if (count < 20 && pixel_y%2 == 0 || count > 20 && pixel_y%2 == 1) {
+		sync = true;
+	  }
+
+	  uint8_t crc = 2;
+	  uint8_t cbc = 1;
+	   
+	  if (sync) {
+		crc = 1;
+		cbc = 2; 
+	  }
+	
+	  if (sync != last_cr_sync) {
+		croma_sync_counter++;
+	  }
+	  else {
+		croma_sync_counter--;
+	  }
+	
+	  if (croma_sync_counter > 2) bw_mode = true;
+	
+	  last_cr_sync = sync;
 
       for(uint16_t x=0; x<modes[decode_mode].width; ++x)
       {
-        int16_t y  = m_line[x][0];    
+      int16_t y  = m_line[x][0];    
         int16_t cr = m_line[x][crc];
         int16_t cb = m_line[x][cbc]; 
         
-        line_rgb565[x] = ycrcb_to_rgb565(y, cr, cb);
+      line_rgb565[x] = ycrcb_to_rgb565(y, cr, cb);
          
       }
       image_write_line(line_rgb565, pixel_y, modes[decode_mode].width, modes[decode_mode].max_height, modes[decode_mode].mode_string);
     }
-    else if (decode_mode == bw8 || decode_mode == bw12) {
+    else if (decode_mode == bw8 || decode_mode == bw12 || bw_mode == true) {
 
       for(uint16_t x=0; x<modes[decode_mode].width; ++x)
       {
@@ -946,6 +968,12 @@ bool c_sstv_decoder :: decode_image_non_blocking(uint8_t timeout_s, bool slant_c
   if(image_complete)
   {
     image_in_progress = false;
+	
+	//Reset counters for bw detection
+	croma_sync_counter = 0;
+	last_cr_sync = false;
+	bw_mode = false;
+	
     return true;
   }
 

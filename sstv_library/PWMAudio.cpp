@@ -2,7 +2,7 @@
 
 PWMAudio ::PWMAudio() {
 }
-
+#ifndef WIO_TERMINAL
 void PWMAudio::end() 
 {
     dma_channel_unclaim(pwm_dma);
@@ -48,3 +48,4 @@ void PWMAudio ::output_samples(const uint16_t samples[], const uint16_t len) {
   uint32_t busy_time_us = block_time_us - idle_time_us;
 
 }
+#endif

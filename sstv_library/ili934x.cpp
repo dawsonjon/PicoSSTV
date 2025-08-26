@@ -30,6 +30,8 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#ifndef WIO_TERMINAL
+
 #include "stdlib.h"
 #include "stdio.h"
 #include "ili934x.h"
@@ -891,3 +893,4 @@ void ILI934X:: fillTriangle(int x0, int y0, int x1, int y1, int x2, int y2, uint
     }
 }
 
+#endif

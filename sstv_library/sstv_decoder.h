@@ -72,6 +72,8 @@ class c_sstv_decoder
   float m_Fs;
   uint32_t m_scale;
   uint32_t sync_counter = 0;
+  int croma_sync_counter = 0;
+  bool last_cr_sync = false;
   //uint16_t y_pixel = 0;
   uint16_t last_x = 0;
   uint16_t last_y = 0;
@@ -94,6 +96,7 @@ class c_sstv_decoder
   half_band_filter2 ssb_filter;
   int16_t frequency;
   e_mode decode_mode;
+  bool bw_mode = false;
   s_sstv_mode modes[num_modes];
   bool m_auto_slant_correction;
   uint32_t m_timeout;
