@@ -44,7 +44,7 @@ Install Seeed Wio Terminal
 Once you've installed everything you need to use the Wio Terminal on the Arduino IDE, copy the sstv_library folder to the libraries folder.
 Open and load on the wio the examples/sstv_receive_wio sketch.
 
-.. image::  images/sstv_decoder_thumbnail_wio.png
+.. image::  images/sstv_decoder_thumbnail_wio.jpg
 
 Credits
 -------
