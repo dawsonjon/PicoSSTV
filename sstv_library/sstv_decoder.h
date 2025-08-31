@@ -116,6 +116,8 @@ class c_sstv_decoder
 
   //Override this function to output a line of image
   virtual void image_write_line(uint16_t line_rgb565[], uint16_t y, uint16_t width, uint16_t height, const char* mode_string) = 0;
+  
+  virtual void scope(uint16_t mag, int16_t freq)  = 0;
 
   public:
   c_sstv_decoder(float Fs);
