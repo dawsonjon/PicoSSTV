@@ -140,6 +140,32 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
 
   }
 
+  void scope(uint16_t mag, int16_t freq) {
+   
+    static uint8_t row = 0;
+    static uint16_t count = 0;
+    static uint16_t w[150];
+    
+    uint8_t f = (freq - 1000) / 10; //from 1500-2300 hz to 50-130 index
+    
+    if (f > 0 && f < 150) {
+      w[f] = (w[f] << 1) + 2; //Pseudo exponential increment
+    }
+    
+    if (count > 128 ) {    //every 128 samples
+      w[20] = 0xF800;  //1200 hz red line
+      w[50] = 0xF800;  //1500 hz red line
+      w[130] = 0xF800; //2300 hz red line
+      display->writeHLine(150,display_height + 1 + row++,150,w);
+    
+      for (int i = 0;i < 150;i++) w[i] = w[i] >> 1; //Exponential decay
+      if (row > 8) row = 0;   
+      count = 0;
+    }
+    
+    count++;
+  }
+
   public:
 
   void start(){adc_audio.begin(28, 15000); row_number = 0;}
@@ -187,3 +213,4 @@ void configure_display()
   display->clear();
   draw_splash_screen();
 }
+
