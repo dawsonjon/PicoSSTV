@@ -146,10 +146,14 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
     static uint8_t row=0;
     static uint16_t count=0;
     static uint16_t w[150];
+    static float mean_freq=0;
 
     uint16_t val=0;
     
     uint8_t f=(freq-1000)/10; //from 1500-2300 to 50-130
+    
+    mean_freq=(mean_freq*15+f)/16;
+    f=mean_freq;
     
     if (f>0 && f<150) {
       w[f]=(w[f]<<1)|3; //Pseudo exponential increment
@@ -223,5 +227,6 @@ void configure_display()
   display->clear();
   draw_splash_screen();
 }
+
 
 
