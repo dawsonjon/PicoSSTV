@@ -142,27 +142,37 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
 
   void scope(uint16_t mag, int16_t freq) {
    
-    static uint8_t row = 0;
-    static uint16_t count = 0;
+    // Frequency
+    static uint8_t row=0;
+    static uint16_t count=0;
     static uint16_t w[150];
+
+    uint16_t val=0;
     
-    uint8_t f = (freq - 1000) / 10; //from 1500-2300 hz to 50-130 index
+    uint8_t f=(freq-1000)/10; //from 1500-2300 to 50-130
     
-    if (f > 0 && f < 150) {
-      w[f] = (w[f] << 1) + 2; //Pseudo exponential increment
+    if (f>0 && f<150) {
+      w[f]=(w[f]<<1)|3; //Pseudo exponential increment
     }
-    
-    if (count > 128 ) {    //every 128 samples
-      w[20] = 0xF800;  //1200 hz red line
-      w[50] = 0xF800;  //1500 hz red line
-      w[130] = 0xF800; //2300 hz red line
-      display->writeHLine(150,display_height + 1 + row++,150,w);
-    
-      for (int i = 0;i < 150;i++) w[i] = w[i] >> 1; //Exponential decay
-      if (row > 8) row = 0;   
-      count = 0;
+    if (count>200 ) {
+      w[20]=0xF800;  //1200 hz red line
+      w[50]=0xF800;  //1500 hz red line
+      w[130]=0xF800; //2300 hz red line
+      display->writeHLine(150,231+row++,150,w);
+      
+      for (int i=0;i<150;i++) {
+        w[i]=w[i]>>2;  //Exponential decay
+        val+=w[i]/150; //Accumulator for signal strength
+      }
+
+      if (row>8) row=0;   
+      count=0;
+
+      val=(val-300)/500; //Scale to 0-8
+      // Draw signal bar
+      display->fillRect(145, 231, 3, 8-val, TFT_BLACK);
+      display->fillRect(145, 239-val, 3, val, TFT_GREEN);
     }
-    
     count++;
   }
 
@@ -213,4 +223,5 @@ void configure_display()
   display->clear();
   draw_splash_screen();
 }
+
 
