@@ -174,8 +174,8 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
 
       val=(val-300)/500; //Scale to 0-8
       // Draw signal bar
-      display->fillRect(145, 231, 3, 8-val, TFT_BLACK);
-      display->fillRect(145, 239-val, 3, val, TFT_GREEN);
+      display->fillRect(145, 231, 3, 8-val, COLOUR_BLACK);
+      display->fillRect(145, 239-val, 3, val, COLOUR_GREEN);
     }
     count++;
   }
@@ -227,6 +227,7 @@ void configure_display()
   display->clear();
   draw_splash_screen();
 }
+
 
 
 
