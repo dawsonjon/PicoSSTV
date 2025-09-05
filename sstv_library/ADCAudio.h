@@ -1,3 +1,5 @@
+#ifdef RASPBERRY_PI_PICO
+
 #ifndef ADC_AUDIO_H
 #define ADC_AUDIO_H
 
@@ -23,4 +25,5 @@ class ADCAudio
     uint16_t dc = 0;
 };
 
+#endif
 #endif
