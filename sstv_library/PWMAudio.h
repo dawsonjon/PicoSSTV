@@ -1,3 +1,5 @@
+#ifdef RASPBERRY_PI_PICO
+
 #ifndef PWM_AUDIO_H
 #define PWM_AUDIO_H
 
@@ -24,4 +26,5 @@ class PWMAudio
 
 };
 
+#endif
 #endif
