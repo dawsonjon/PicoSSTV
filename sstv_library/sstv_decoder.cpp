@@ -640,7 +640,9 @@ uint16_t c_sstv_decoder :: get_frequency_sample()
   static uint32_t smoothed_sample = 0;
   smoothed_sample = ((smoothed_sample << 3) + sample - smoothed_sample) >> 3;
   int16_t smoothed_sample_16 = std::min(std::max(smoothed_sample, (uint32_t)1000u), (uint32_t)2500u);
-
+  
+  scope(magnitude, smoothed_sample_16);
+  
   return smoothed_sample_16;
 }
 
