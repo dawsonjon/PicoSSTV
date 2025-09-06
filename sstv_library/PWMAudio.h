@@ -1,4 +1,4 @@
-#ifdef RASPBERRY_PI_PICO
+#ifdef ARDUINO_ARCH_RP2040
 
 #ifndef PWM_AUDIO_H
 #define PWM_AUDIO_H

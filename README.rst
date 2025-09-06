@@ -43,5 +43,7 @@ The SSTV code is written in pure C++, but a demo application is provided as an `
 Credits
 -------
 
+
+Many thanks to Franciscu Capuzzi IS0JSV for implenting additional modes and waterfall feature.
 This project uses the ILI934X display driver by Darren Horrocks.
 

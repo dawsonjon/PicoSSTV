@@ -99,6 +99,7 @@ button button_right(21);
 button button_left(22);
 
 enum e_view_mode {rx_mode, slideshow_mode};
+e_view_mode view_mode;
 struct s_settings {
   uint8_t slideshow_timeout;
   uint8_t lost_signal_timeout;
@@ -231,6 +232,54 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
 
   }
 
+  void scope(uint16_t mag, int16_t freq) {
+
+    const uint16_t scope_x = 170;
+    const uint16_t scope_y = 234;
+
+    if(view_mode != rx_mode) return;
+   
+    // Frequency
+    static uint8_t row=0;
+    static uint16_t count=0;
+    static uint16_t w[150];
+    static float mean_freq=0;
+
+    uint16_t val=0;
+    
+    uint8_t f=(freq-1000)/10; //from 1500-2300 to 50-130
+    
+    mean_freq=(mean_freq*15+f)/16;
+    f=mean_freq;
+    
+    if (f>0 && f<150) {
+      w[f]=(w[f]<<1)|3; //Pseudo exponential increment
+    }
+    if (count>200 ) {
+      w[20]=0xF800;  //1200 hz red line
+      w[50]=0xF800;  //1500 hz red line
+      w[130]=0xF800; //2300 hz red line
+      display->writeHLine(scope_x+5,scope_y-9+row++,150,w);
+      
+      for (int i=0;i<150;i++) {
+        w[i]=w[i]>>2;  //Exponential decay
+        val+=w[i]/150; //Accumulator for signal strength
+      }
+
+      if (row>8) row=0;   
+      count=0;
+
+      val=(val-300)/500; //Scale to 0-8
+      // Draw signal bar
+      display->fillRect(scope_x, scope_y-9, 3, 8-val, COLOUR_BLACK);
+      display->fillRect(scope_x, scope_y-1-val, 3, val, COLOUR_GREEN);
+    }
+    count++;
+  }
+
+
+
+
   c_bmp_writer_stdio output_file;
   uint16_t bmp_row_number = 0;
 
@@ -249,6 +298,7 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
     bmp_row_number = 0;
     Serial.println("closing bmp file");
     draw_button_bar("Menu", "", "", "");
+    display->fillRect(DISPLAY_WIDTH/2, DISPLAY_HEIGHT-STATUS_BAR_HEIGHT-1, STATUS_BAR_HEIGHT, DISPLAY_WIDTH/2, COLOUR_BLACK);
     output_file.update_header();
     output_file.close();
   }
@@ -435,7 +485,7 @@ void loop() {
 
   bool image_in_progress = false;
   bool image_complete = false;
-  e_view_mode view_mode = rx_mode;
+  view_mode = rx_mode;
 
   while(1){
     
@@ -547,7 +597,7 @@ void draw_banner(const char* message)
 }
 void draw_status_bar(const char* message)
 {
-  display->fillRect(0, DISPLAY_HEIGHT-STATUS_BAR_HEIGHT-1, STATUS_BAR_HEIGHT, DISPLAY_WIDTH, COLOUR_BLACK);
+  display->fillRect(0, DISPLAY_HEIGHT-STATUS_BAR_HEIGHT-1, STATUS_BAR_HEIGHT, DISPLAY_WIDTH/2, COLOUR_BLACK);
   #define MARGIN ((STATUS_BAR_HEIGHT - 8)/2)
   display->drawString(MARGIN, DISPLAY_HEIGHT-STATUS_BAR_HEIGHT+MARGIN, font_8x5, message, COLOUR_WHITE, COLOUR_BLACK);
 }
@@ -726,6 +776,7 @@ void launch_menu(e_view_mode &view_mode)
     view_mode = rx_mode;
     draw_splash_screen();
     draw_button_bar("Menu", "", "", "");
+    display->fillRect(DISPLAY_WIDTH/2, DISPLAY_HEIGHT-STATUS_BAR_HEIGHT-1, STATUS_BAR_HEIGHT, DISPLAY_WIDTH/2, COLOUR_BLACK);
     return;
   }
   else if(menu_selection == 1)

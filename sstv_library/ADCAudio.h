@@ -1,4 +1,4 @@
-#ifdef RASPBERRY_PI_PICO
+#ifdef ARDUINO_ARCH_RP2040
 
 #ifndef ADC_AUDIO_H
 #define ADC_AUDIO_H
