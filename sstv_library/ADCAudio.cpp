@@ -1,3 +1,5 @@
+#ifdef ARDUINO_ARCH_RP2040
+
 #include "ADCAudio.h"
 #include <stdio.h>
 #include <Arduino.h>
@@ -69,3 +71,4 @@ int16_t * ADCAudio ::input_samples() {
   return output_samples;
 
 }
+#endif

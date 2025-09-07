@@ -1,3 +1,5 @@
+#ifdef ARDUINO_ARCH_RP2040
+
 #include "PWMAudio.h"
 
 PWMAudio ::PWMAudio() {
@@ -48,3 +50,4 @@ void PWMAudio ::output_samples(const uint16_t samples[], const uint16_t len) {
   uint32_t busy_time_us = block_time_us - idle_time_us;
 
 }
+#endif
