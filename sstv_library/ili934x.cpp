@@ -1,3 +1,5 @@
+#ifdef ARDUINO_ARCH_RP2040
+
 /*
 BSD 3-Clause License
 
@@ -890,4 +892,4 @@ void ILI934X:: fillTriangle(int x0, int y0, int x1, int y1, int x2, int y2, uint
         drawFastHline(ax, bx, y, colour);
     }
 }
-
+#endif
