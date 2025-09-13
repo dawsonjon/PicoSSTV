@@ -39,6 +39,13 @@ Install Arduino Pico
 
 The SSTV code is written in pure C++, but a demo application is provided as an `Arduino sketch <https://github.com/dawsonjon/PicoSSTV/tree/main/sstv_decoder>`__. The `Arduino Pico <https://github.com/earlephilhower/arduino-pico>`__ port by Earle Philhower is probably the easiest way to install and configure a C++ development environment for the Raspberry Pi Pico. Its possible to install the tool and get up-and running with example applications in just a few minutes. Refer to the `installation instructions <https://github.com/earlephilhower/arduino-pico?tab=readme-ov-file#installing-via-arduino-boards-manager>`__ and the `online documentation <https://arduino-pico.readthedocs.io/en/latest/>`__ to get started.
 
+Other Builds
+------------
+
+.. image:: https://github.com/Brabudu/WioTerminalSSTV/raw/main/img/sstv.jpg
+
+
+Checkout the `port <https://github.com/Brabudu/WioTerminalSSTV>`__ to Wio Terminal by Franciscu Capuzzi "Brabudu" IS0JSV.
 
 Credits
 -------
