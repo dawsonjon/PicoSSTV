@@ -26,6 +26,7 @@ class c_sstv_encoder
   uint32_t m_phase;
   int16_t m_sin_table[1024];
   uint32_t m_residue_f16;
+  bool m_abort;
   void output_samples(uint32_t frequency, uint16_t samples);
   void generate_tone(uint16_t frequency, uint32_t time_ms_f16);
   bool calculate_parity(uint8_t number);
@@ -43,6 +44,7 @@ class c_sstv_encoder
   public:
   c_sstv_encoder(double fs_Hz);
   void generate_sstv(e_sstv_tx_mode);
+  void abort();
 
 };
 

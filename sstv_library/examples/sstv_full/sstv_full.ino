@@ -21,15 +21,21 @@
 #include "font_8x5.h"
 #include "font_16x12.h"
 #include "sstv_decoder.h"
-#include "sstv_encoder.h"
+#include "bmp_classes.h"
 #include "ADCAudio.h"
 #include "PWMAudio.h"
 #include "splash.h"
+#include "sstv_encoder.h"
+#include "frame_buffer.h"
 #include <bmp_lib.h>
 #include <SPI.h>
 #include <SDFS.h>
 #include <VFS.h>
 #include "button.h"
+#include <vector>
+#include <string>
+#include <algorithm>
+
 
 //CONFIGURATION SECTION
 ///////////////////////////////////////////////////////////////////////////////
@@ -82,7 +88,7 @@ void draw_button_bar(const char* btn1, const char* btn2, const char* btn3, const
 void configure_display();
 void initialise_sdcard();
 void get_new_filename(char *buffer, uint16_t buffer_size);
-void display_image(const char* filename);
+void display_image(const char* filename, bool show_overlay=false);
 void get_timeout_seconds(const char* title, uint8_t & menu_selection);
 void launch_menu();
 uint16_t count_bitmaps(Dir &root);
@@ -100,70 +106,26 @@ button button_left(22);
 
 enum e_view_mode {rx_mode, slideshow_mode};
 e_view_mode view_mode;
+
+static const uint16_t overlay_width = 320;
+static const uint16_t overlay_height = 25;
+uint16_t overlay_buffer[overlay_width*overlay_height];
+c_frame_buffer overlay(overlay_buffer, overlay_width, overlay_height);
+
 struct s_settings {
   uint8_t slideshow_timeout;
   uint8_t lost_signal_timeout;
   uint8_t transmit_mode;
   uint8_t auto_slant_correction;
+  char overlay_text[25];
 };
+
 s_settings settings = {
   3, //5 seconds
-  5,  //30 seconds
+  5, //30 seconds
   1, //martin m2
-  1 //auto slant correction on
-};
-
-class c_bmp_writer_stdio : public c_bmp_writer
-{
-    bool file_open(const char* filename)
-    {
-      f = fopen(filename, "wb");
-      return f != 0;
-    }
-
-    void file_close()
-    {
-      if(f) fclose(f);
-    }
-
-    void file_write(const void* data, uint32_t element_size, uint32_t num_elements)
-    {
-      if(f) fwrite(data, element_size, num_elements, f);
-    }
-
-    void file_seek(uint32_t offset)
-    {
-        fseek(f, offset, SEEK_SET);
-    }
-
-    FILE* f;
-};
-
-//Derive a class from bitmap reader and override hardware specific functions
-class c_bmp_reader_stdio : public c_bmp_reader
-{
-    bool file_open(const char* filename)
-    {
-        f = fopen(filename, "rb");
-        return f != NULL;
-    }
-
-    void file_close()
-    {
-        fclose(f);
-    }
-
-    uint32_t file_read(void* data, uint32_t element_size, uint32_t num_elements)
-    {
-      return fread(data, element_size, num_elements, f);
-    }
-
-    void file_seek(uint32_t offset)
-    {
-        fseek(f, offset, SEEK_SET);
-    }
-
-    FILE* f;
+  1,  //auto slant correction on
+  {0}
 };
 
 //c_sstv_decoder provides a reusable SSTV decoder
@@ -234,51 +196,56 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
 
   void scope(uint16_t mag, int16_t freq) {
 
-    const uint16_t scope_x = 170;
+    const uint16_t scope_x = 168;
     const uint16_t scope_y = 234;
+    const uint16_t scope_width = 150;
 
     if(view_mode != rx_mode) return;
    
-    // Frequency
     static uint8_t row=0;
     static uint16_t count=0;
-    static uint16_t w[150];
-    static float mean_freq=0;
+    static uint32_t spectrum[150];
+    static uint32_t signal_strength = 0;
 
-    uint16_t val=0;
-    
-    uint8_t f=(freq-1000)/10; //from 1500-2300 to 50-130
-    
-    mean_freq=(mean_freq*15+f)/16;
-    f=mean_freq;
-    
-    if (f>0 && f<150) {
-      w[f]=(w[f]<<1)|3; //Pseudo exponential increment
+    const int8_t f=(freq-1000)*150/1500;
+    const uint8_t Hz_1200 = (1200-1000)*scope_width/1500;
+    const uint8_t Hz_1500 = (1500-1000)*scope_width/1500;
+    const uint8_t Hz_2300 = (2300-1000)*scope_width/1500;
+   
+    if (freq < 2450 && f>0 && f<scope_width) {
+      spectrum[f] = (spectrum[f] * 15 + mag)/16;
     }
+    signal_strength = (signal_strength * 15 + mag)/16;
+
     if (count>200 ) {
-      w[20]=0xF800;  //1200 hz red line
-      w[50]=0xF800;  //1500 hz red line
-      w[130]=0xF800; //2300 hz red line
-      display->writeHLine(scope_x+5,scope_y-9+row++,150,w);
-      
+      display->drawRect(scope_x-1, scope_y-12, 14, scope_width+3, COLOUR_WHITE);
+      uint16_t waterfall[scope_width];
       for (int i=0;i<150;i++) {
-        w[i]=w[i]>>2;  //Exponential decay
-        val+=w[i]/150; //Accumulator for signal strength
+        float scaled_dB = 2*20*log10(spectrum[i]);
+        scaled_dB = std::max(std::min(scaled_dB, 255.0f), 0.0f);
+        waterfall[i]=display->colour565(0, scaled_dB, scaled_dB);
+      }
+      waterfall[Hz_1200]=COLOUR_RED;
+      waterfall[Hz_1500]=COLOUR_RED;
+      waterfall[Hz_2300]=COLOUR_RED;
+      display->writeHLine(scope_x,scope_y-10+row++,150,waterfall);
+      
+      for (int i=0;i<scope_width;i++) {
+        spectrum[i]=0;
       }
 
-      if (row>8) row=0;   
+      if (row>7) row=0;   
       count=0;
 
-      val=(val-300)/500; //Scale to 0-8
       // Draw signal bar
-      display->fillRect(scope_x, scope_y-9, 3, 8-val, COLOUR_BLACK);
-      display->fillRect(scope_x, scope_y-1-val, 3, val, COLOUR_GREEN);
+      float scaled_dB = 2*20*log10(signal_strength);
+      scaled_dB = std::max(std::min(scaled_dB, 149.0f), 0.0f);
+      display->fillRect(scope_x, scope_y-2, 2, scaled_dB, COLOUR_GREEN);
+      display->fillRect(scope_x+scaled_dB, scope_y-2, 2, 150-scaled_dB, COLOUR_BLACK);
+
     }
     count++;
   }
-
-
-
 
   c_bmp_writer_stdio output_file;
   uint16_t bmp_row_number = 0;
@@ -297,8 +264,6 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
     tft_row_number = 0;
     bmp_row_number = 0;
     Serial.println("closing bmp file");
-    draw_button_bar("Menu", "", "", "");
-    display->fillRect(DISPLAY_WIDTH/2, DISPLAY_HEIGHT-STATUS_BAR_HEIGHT-1, STATUS_BAR_HEIGHT, DISPLAY_WIDTH/2, COLOUR_BLACK);
     output_file.update_header();
     output_file.close();
   }
@@ -308,6 +273,20 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
   c_sstv_decoder_fileio(float fs) : c_sstv_decoder{fs}{}
 
 };
+
+void set_overlay(const char message[])
+{
+  //Create a background gradient
+  for(uint16_t x=0; x<overlay_width; x++)
+  {
+    for(uint16_t y=0; y<overlay_height; y++)
+    {
+      overlay.set_pixel(x, y, overlay.colour565(0, x*255/overlay_width, 255));
+    }
+  }
+  uint16_t text_width = strlen(message) * 12;
+  overlay.draw_string((overlay_width-text_width)/2, (overlay_height-16)/2, font_16x12, message, COLOUR_ORANGE);
+}
 
 //Derive a class from sstv encoder and override hardware specific functions
 const uint16_t audio_buffer_length = 4096u;
@@ -320,11 +299,15 @@ class c_sstv_encoder_pwm : public c_sstv_encoder
   uint8_t ping_pong = 0;
   PWMAudio audio_output;
   uint16_t sample_min, sample_max;
+  
+
+
 
   void output_sample(int16_t sample)
   {
     uint16_t scaled_sample = ((sample+32767)>>5);// + 1024;
     audio_buffer[ping_pong][audio_buffer_index++] = scaled_sample;
+    if(button_left.is_pressed()) abort();
     if(audio_buffer_index == audio_buffer_length)
     {
       audio_output.output_samples(audio_buffer[ping_pong], audio_buffer_length);
@@ -342,6 +325,8 @@ class c_sstv_encoder_pwm : public c_sstv_encoder
   
   uint8_t get_image_pixel(uint16_t width, uint16_t height, uint16_t y, uint16_t x, uint8_t colour)
   {
+
+    
     uint16_t image_y = (uint32_t)y * image_height / height;
     uint16_t image_x = (uint32_t)x * image_width / width;
 
@@ -349,13 +334,21 @@ class c_sstv_encoder_pwm : public c_sstv_encoder
     {
       bitmap.read_row_rgb565(row);
       row_number++;
-      draw_button_bar("Cancel", "", "", "");
       char status[100];
       snprintf(status, 100, "transmitting %u/%u (%u%%)", y+1, height, (100*(y+1))/height);
       draw_banner(status);
     }
-
     uint16_t pixel = row[image_x];
+    
+    //overlay a text banner
+    uint16_t overlay_y = (uint32_t)y * overlay_width / width;
+    uint16_t overlay_x = (uint32_t)x * overlay_width / width;
+    if(overlay_y<overlay_height)
+    {
+      pixel = overlay_buffer[(overlay_y*overlay_width) + overlay_x];
+      pixel = (pixel >> 8) | (pixel << 8);
+    }
+
     if(colour == 0) return ((pixel >> 11) & 0x1F) << 3;     //r 
     else if(colour == 1) return ((pixel >> 5) & 0x3F) << 2; //g
     else if(colour == 2) return (pixel & 0x1F) << 3;        //b
@@ -381,6 +374,7 @@ class c_sstv_encoder_pwm : public c_sstv_encoder
     bitmap.close();
     audio_output.end();
   }
+
   c_sstv_encoder_pwm(double fs_Hz) : c_sstv_encoder(fs_Hz){}
 
 };
@@ -476,6 +470,7 @@ void setup() {
 }
 
 void loop() {
+
   c_sstv_decoder_fileio sstv_decoder(15000);
   sstv_decoder.start();
   sstv_decoder.open("temp");
@@ -483,9 +478,13 @@ void loop() {
   get_new_filename(rx_filename, 100);
   c_slideshow slideshow;
 
+  bool draw = true;
   bool image_in_progress = false;
   bool image_complete = false;
   view_mode = rx_mode;
+  display->clear(COLOUR_NAVY);
+  strncpy(settings.overlay_text, "", 24);
+  set_overlay(settings.overlay_text);
 
   while(1){
     
@@ -499,22 +498,32 @@ void loop() {
       SDFS.rename("temp", rx_filename);
       get_new_filename(rx_filename, 100);
       sstv_decoder.open("temp");
-    } 
+      draw = true;
+    }
+
     if(image_in_progress)
     {
       view_mode = rx_mode;
     }
     else
     {
-      if(button_left.is_pressed()){
-        launch_menu(view_mode);
+      if(button_left.is_pressed())
+      {
+        launch_menu();
         if(view_mode == slideshow_mode) slideshow.launch_slideshow();
+        if(view_mode == rx_mode){display->clear(COLOUR_NAVY); draw = true;}
       }
     }
     
     if(view_mode == slideshow_mode)
     {
       slideshow.update_slideshow();
+    }
+    else if(view_mode == rx_mode && draw)
+    {
+      draw_button_bar("Menu", "", "", "");
+      display->fillRect(DISPLAY_WIDTH/2, DISPLAY_HEIGHT-STATUS_BAR_HEIGHT-1, STATUS_BAR_HEIGHT, DISPLAY_WIDTH/2, COLOUR_BLACK);
+      draw = false;
     }
 
   }
@@ -524,6 +533,7 @@ void loop() {
 void draw_splash_screen()
 {
   display->writeImage(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, splash);
+  sleep_ms(1000);
 }
 
 void configure_display()
@@ -592,15 +602,17 @@ void get_new_filename(char *buffer, uint16_t buffer_size)
 void draw_banner(const char* message)
 {
   uint16_t width = strlen(message)*6+10;
-  display->fillRoundedRect((DISPLAY_WIDTH-width)/2, 3, 10, width, 3, 0);
-  display->drawString((DISPLAY_WIDTH-width)/2+5, 4, font_8x5, message, COLOUR_WHITE, COLOUR_BLACK);
+  display->fillRoundedRect((DISPLAY_WIDTH-width)/2, 30, 10, width, 3, 0);
+  display->drawString((DISPLAY_WIDTH-width)/2+5, 31, font_8x5, message, COLOUR_WHITE, COLOUR_BLACK);
 }
+
 void draw_status_bar(const char* message)
 {
   display->fillRect(0, DISPLAY_HEIGHT-STATUS_BAR_HEIGHT-1, STATUS_BAR_HEIGHT, DISPLAY_WIDTH/2, COLOUR_BLACK);
   #define MARGIN ((STATUS_BAR_HEIGHT - 8)/2)
   display->drawString(MARGIN, DISPLAY_HEIGHT-STATUS_BAR_HEIGHT+MARGIN, font_8x5, message, COLOUR_WHITE, COLOUR_BLACK);
 }
+
 void draw_button_bar(const char* btn1, const char* btn2, const char* btn3, const char* btn4)
 {
   display->fillRect(0, DISPLAY_HEIGHT-STATUS_BAR_HEIGHT-1, STATUS_BAR_HEIGHT, DISPLAY_WIDTH, COLOUR_BLACK);
@@ -627,7 +639,6 @@ void draw_button_bar(const char* btn1, const char* btn2, const char* btn3, const
   display->drawString(button_x + ((button_width-(6*strlen(btn4)))/2), DISPLAY_HEIGHT-STATUS_BAR_HEIGHT+MARGIN, font_8x5, btn4, COLOUR_WHITE, COLOUR_BLUE);
 }
 
-
 uint16_t count_bitmaps(Dir &root)
 {
   uint16_t count = 0;
@@ -639,7 +650,6 @@ uint16_t count_bitmaps(Dir &root)
   }
   return count;
 }
-
 
 void get_bitmap_index(Dir &root, uint16_t index)
 {
@@ -660,13 +670,13 @@ void transmit_image(const char* filename)
 {
   const uint16_t divider = rp2040.f_cpu()/15000;
   const float sample_rate_Hz = (double)rp2040.f_cpu()/divider;
-  Serial.println(sample_rate_Hz);
   c_sstv_encoder_pwm sstv_encoder(sample_rate_Hz);
   sstv_encoder.open(filename);
   digitalWrite(LED_BUILTIN, 1);
   sstv_encoder.generate_sstv((e_sstv_tx_mode)settings.transmit_mode);
   digitalWrite(LED_BUILTIN, 0);
   sstv_encoder.close();
+  display->clear(COLOUR_NAVY);
 }
 
 void tx_file_browser()
@@ -700,7 +710,7 @@ void tx_file_browser()
       get_bitmap_index(root, bitmap_index);
       filename = root.fileName();
       Serial.println(filename);
-      display_image(filename.c_str());
+      display_image(filename.c_str(), true);
       draw_banner(filename.c_str());
       draw_button_bar("Transmit", "Cancel", "Last", "Next");
       redraw = false;
@@ -708,7 +718,7 @@ void tx_file_browser()
 
     if(button_left.is_pressed())
     {
-      Serial.println("transmitting");
+      draw_button_bar("Cancel", "", "", "");
       transmit_image(filename.c_str());
       return;
     }
@@ -721,7 +731,7 @@ void tx_file_browser()
 
 }
 
-void display_image(const char* filename)
+void display_image(const char* filename, bool show_overlay)
 {
   c_bmp_reader_stdio bitmap;
   uint16_t width, height;
@@ -738,15 +748,37 @@ void display_image(const char* filename)
     //scale image to fit TFT size
     uint16_t scaled_row[display_width];
     uint16_t pixel_number = 0;
-    for(uint16_t x=0; x<width; x++)
+    uint16_t overlay_y = (uint32_t)y * overlay_width / width;
+    
+    //overlay a text banner    
+    if(show_overlay && overlay_y<overlay_height)
     {
+      for(uint16_t x=0; x<width; x++)
+      {
+        uint16_t overlay_x = (uint32_t)x * overlay_width / width;
+        while(pixel_number < overlay_x)
+        {
+          //display expects byteswapped data
+          uint16_t pixel = overlay_buffer[(overlay_y*overlay_width) + overlay_x];
+          //pixel = (pixel >> 8) | (pixel << 8);
+          scaled_row[pixel_number] = pixel;
+          pixel_number++;
+        }
+      }
+    }
+    else
+    {
+      for(uint16_t x=0; x<width; x++)
+      {
         uint16_t scaled_x = static_cast<uint32_t>(x) * display_width / width;
+        uint16_t overlay_x = (uint32_t)x * overlay_width / width;
         while(pixel_number < scaled_x)
         {
           //display expects byteswapped data
           scaled_row[pixel_number] = ((line_rgb565[x] & 0xff) << 8) | ((line_rgb565[x] & 0xff00) >> 8);
           pixel_number++;
         }
+      }
     }
 
     uint32_t scaled_y = static_cast<uint32_t>(y) * display_height / height;
@@ -760,7 +792,7 @@ void display_image(const char* filename)
   bitmap.close();
 }
 
-void launch_menu(e_view_mode &view_mode)
+void launch_menu()
 {
   uint8_t menu_selection = 0;
   const char * const menu_selections[] = {
@@ -770,13 +802,9 @@ void launch_menu(e_view_mode &view_mode)
     "Settings"
   };
   menu("Menu", menu_selection, menu_selections, 4);
-
   if(menu_selection == 0)
   {
     view_mode = rx_mode;
-    draw_splash_screen();
-    draw_button_bar("Menu", "", "", "");
-    display->fillRect(DISPLAY_WIDTH/2, DISPLAY_HEIGHT-STATUS_BAR_HEIGHT-1, STATUS_BAR_HEIGHT, DISPLAY_WIDTH/2, COLOUR_BLACK);
     return;
   }
   else if(menu_selection == 1)
@@ -797,8 +825,9 @@ void launch_menu(e_view_mode &view_mode)
       "Lost Signal Timeout",
       "Transmit Mode",
       "Slideshow Timeout",
+      "Overlay Text",
     };
-    if(menu("Settings", menu_selection, menu_selections, 4))
+    if(menu("Settings", menu_selection, menu_selections, 5))
     {
       if(menu_selection == 0)//Auto slant correction
       {
@@ -820,6 +849,11 @@ void launch_menu(e_view_mode &view_mode)
       else if(menu_selection == 3)//slideshow_timeout
       {
         get_timeout_seconds("Slideshow Timeout", settings.slideshow_timeout);
+      }
+      else if(menu_selection == 4)//overlay_text
+      {
+        text_entry(settings.overlay_text, 24);
+        set_overlay(settings.overlay_text);
       }
     }
   } 
@@ -885,7 +919,6 @@ bool menu(const char* title, uint8_t &selection, const char * const menu_items[]
       draw = true;
     }
     
-    Serial.println(button_left.is_pressed());
     //ok
     if(button_left.is_pressed())
     {
@@ -915,5 +948,141 @@ bool menu(const char* title, uint8_t &selection, const char * const menu_items[]
       }
       draw = false;
     }
+  }
+}
+
+button* buttons[] = {&button_left, &button_right, &button_down, &button_up};
+static char char_select[4][4][4] = {
+
+{
+{'A', 'B', 'C', 'D'},
+{'E', 'F', 'G', 'H'},
+{' ', ' ', ' ', '_'},
+{'<', '>', '#', '!'},
+},
+
+{
+{'I', 'J', 'K', 'L'},
+{'M', 'N', 'O', 'P'},
+{'Q', ' ', ' ', '_'},
+{'<', '>', '#', '!'},
+},
+
+{
+{'R', 'S', 'T', 'U'},
+{'V', 'W', 'X', 'Y'},
+{'Z', ' ', ' ', '_'},
+{'<', '>', '#', '!'},
+},
+
+{
+{'0', '1', '2', '3'},
+{'4', '5', '6', '7'},
+{'8', '9', ' ', '_'},
+{'<', '>', '#', '!'},
+}
+
+};
+
+uint8_t get_char0()
+{
+  display->fillRect(0, 120, 120, 320, COLOUR_BLACK);
+  for(uint8_t i=0; i<4; i++)
+  {
+    for(uint8_t j=0; j<4; j++)
+    {
+      char disp[20];
+      snprintf(disp, 20, " %c%c%c%c", char_select[i][j][0], char_select[i][j][1],char_select[i][j][2],char_select[i][j][3]);
+      display->drawString(10+i*75, 120+j*20, font_16x12, disp, COLOUR_WHITE, COLOUR_BLACK);
+    }
+  }
+
+  while(1)
+  {
+    for(uint8_t i=0; i<4; i++)
+    {
+      if(buttons[i]->is_pressed()) return i; 
+    }
+  }
+
+}
+
+uint8_t get_char1(uint8_t sel1)
+{
+  display->fillRect(0, 120, 120, 320, COLOUR_BLACK);
+  for(uint8_t i=0; i<4; i++)
+  {
+      char disp[20];
+      snprintf(disp, 20, " %c%c%c%c", char_select[sel1][i][0], char_select[sel1][i][1],char_select[sel1][i][2],char_select[sel1][i][3]);
+      display->drawString(10+i*75, 120, font_16x12, disp, COLOUR_WHITE, COLOUR_BLACK);
+  }
+
+  while(1)
+  {
+    for(uint8_t i=0; i<4; i++)
+    {
+      if(buttons[i]->is_pressed()) return i; 
+    }
+  }
+
+}
+
+uint8_t get_char2(uint8_t sel0, uint8_t sel1)
+{
+  display->fillRect(0, 120, 120, 320, COLOUR_BLACK);
+  if(sel1==3){
+    display->drawString(16, 120, font_16x12, " LEFT RIGHT ENTER CLEAR", COLOUR_WHITE, COLOUR_BLACK);
+  } else {
+    for(uint8_t i=0; i<4; i++)
+    {
+      char disp[20];
+      snprintf(disp, 20, "%c", char_select[sel0][sel1][i]);
+      display->drawString(10+i*75, 120, font_16x12, disp, COLOUR_WHITE, COLOUR_BLACK);
+    }
+  }
+
+  while(1)
+  {
+    for(uint8_t i=0; i<4; i++)
+    {
+      if(buttons[i]->is_pressed()) return i; 
+    }
+  }
+
+}
+
+void text_entry(char string[], uint8_t n)
+{
+  uint8_t cursor = 0;
+  while(1)
+  {
+    display->clear(COLOUR_BLACK);
+    display->drawRect((DISPLAY_WIDTH-(n*12))/2, 20, 16, n*12, COLOUR_NAVY);
+    display->drawString((DISPLAY_WIDTH-(n*12))/2, 20, font_16x12, string, COLOUR_WHITE, COLOUR_NAVY);
+    display->drawRect((DISPLAY_WIDTH-(n*12))/2 + cursor*12, 20, 16, 12, COLOUR_RED);
+
+    uint8_t sel0 = get_char0();
+    uint8_t sel1 = get_char1(sel0);
+    uint8_t sel2 = get_char2(sel0, sel1);
+
+    char entry = char_select[sel0][sel1][sel2];
+
+    if(entry == '<'){
+      cursor--;
+    } else if (entry == '>'){
+      cursor++;
+    } else if (entry == '#'){
+      return;
+    } else if (entry == '!'){
+      for(uint8_t i=0; i<n; i++) string[i] = 0;
+      cursor=0;
+    } else if (entry == '_'){
+      string[cursor++] = ' ';
+    } else {
+      string[cursor++] = entry;
+    }
+
+    if(cursor == n) return;
+    cursor %= n;
   }
 }

@@ -134,6 +134,8 @@ void c_sstv_encoder :: generate_scottie(e_sstv_tx_mode mode)
     generate_tone(1500, colour_gap_ms_f16);
     for(uint16_t col=0u; col < width; ++col)
       generate_tone(get_pixel(width, height, row, col, 0), pixel_time_ms_f16);
+
+    if(m_abort) return;
   }
 }
 
@@ -181,6 +183,8 @@ void c_sstv_encoder :: generate_martin(e_sstv_tx_mode mode)
 
     generate_tone(1500, colour_gap_ms_f16);
     generate_tone(1200, hsync_pulse_ms_f16);
+
+    if(m_abort) return;
   }
 }
 
@@ -290,12 +294,14 @@ void c_sstv_encoder :: generate_pd(e_sstv_tx_mode mode)
 
     for(uint16_t col=0u; col < width; ++col)
       generate_tone(1500 + ((2300-1500)*(uint16_t)row_y[col]/256), pixel_time_ms_f16);
+
+    if(m_abort) return;
   }
 }
 
 void c_sstv_encoder :: generate_sstv(e_sstv_tx_mode mode)
 {
-
+  m_abort = false;
   generate_tone(1900, 300 << 16);
   generate_tone(1200, 10 << 16);
   generate_tone(1900, 300 << 16);
@@ -320,4 +326,11 @@ void c_sstv_encoder :: generate_sstv(e_sstv_tx_mode mode)
       generate_scottie(mode);
       break;
   }
+}
+
+void c_sstv_encoder :: abort()
+{
+
+  m_abort = true;
+
 }
