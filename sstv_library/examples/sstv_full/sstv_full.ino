@@ -431,6 +431,7 @@ class c_slideshow
 };
 
 void setup() {
+  EEPROM.begin(512);
   Serial.begin(115200);
   Serial.println("Pico SSTV Copyright (C) Jonathan P Dawson 2025");
   Serial.println("github: https://github.com/dawsonjon/101Things");
