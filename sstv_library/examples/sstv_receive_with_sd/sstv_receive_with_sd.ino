@@ -115,7 +115,7 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
   ADCAudio adc_audio;
   uint16_t tft_row_number = 0;
   const uint16_t display_width = 320;
-  const uint16_t display_height = 240 - 10; //allow space for status bar
+  const uint16_t display_height = 240 - 20; //allow space for status bar
   uint16_t image_width, image_height;
 
   //override the get_audio_sample function to read ADC audio
@@ -168,50 +168,60 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
     }
 
     //update progress
-    display->fillRect(0, display_height, 10, display_width, COLOUR_BLACK);
+    display->fillRect(0, display_height, 20, display_width, COLOUR_BLACK);
     char buffer[21];
     snprintf(buffer, 21, "%10s: %ux%u", mode_string, width, y+1);
-    display->drawString(0, display_height+2, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK);
+    display->drawString(0, display_height+10, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK);
     Serial.println(buffer);
 
   }
 
-  void scope(uint16_t mag, int16_t freq) {
-   
-    // Frequency
+void scope(uint16_t mag, int16_t freq) {
+
+    const uint16_t scope_x = 168;
+    const uint16_t scope_y = 239;
+    const uint16_t scope_width = 150;
+
     static uint8_t row=0;
     static uint16_t count=0;
-    static uint16_t w[150];
-    static float mean_freq=0;
+    static uint32_t spectrum[150];
+    static uint32_t signal_strength = 0;
 
-    uint16_t val=0;
-    
-    uint8_t f=(freq-1000)/10; //from 1500-2300 to 50-130
-    
-    mean_freq=(mean_freq*15+f)/16;
-    f=mean_freq;
-    
-    if (f>0 && f<150) {
-      w[f]=(w[f]<<1)|3; //Pseudo exponential increment
+    const int8_t f=(freq-1000)*150/1500;
+    const uint8_t Hz_1200 = (1200-1000)*scope_width/1500;
+    const uint8_t Hz_1500 = (1500-1000)*scope_width/1500;
+    const uint8_t Hz_2300 = (2300-1000)*scope_width/1500;
+   
+    if (freq < 2450 && f>0 && f<scope_width) {
+      spectrum[f] = (spectrum[f] * 15 + mag)/16;
     }
+    signal_strength = (signal_strength * 15 + mag)/16;
     if (count>200 ) {
-      w[20]=0xF800;  //1200 hz red line
-      w[50]=0xF800;  //1500 hz red line
-      w[130]=0xF800; //2300 hz red line
-      display->writeHLine(150,231+row++,150,w);
-      
+      display->drawRect(scope_x-1, scope_y-12, 14, scope_width+3, COLOUR_WHITE);
+      uint16_t waterfall[scope_width];
       for (int i=0;i<150;i++) {
-        w[i]=w[i]>>2;  //Exponential decay
-        val+=w[i]/150; //Accumulator for signal strength
+        float scaled_dB = 2*20*log10(spectrum[i]);
+        scaled_dB = std::max(std::min(scaled_dB, 255.0f), 0.0f);
+        waterfall[i]=display->colour565(0, scaled_dB, scaled_dB);
+      }
+      waterfall[Hz_1200]=COLOUR_RED;
+      waterfall[Hz_1500]=COLOUR_RED;
+      waterfall[Hz_2300]=COLOUR_RED;
+      display->writeHLine(scope_x,scope_y-10+row++,150,waterfall);
+      
+      for (int i=0;i<scope_width;i++) {
+        spectrum[i]=0;
       }
 
-      if (row>8) row=0;   
+      if (row>7) row=0;   
       count=0;
 
-      val=(val-300)/500; //Scale to 0-8
       // Draw signal bar
-      display->fillRect(145, 231, 3, 8-val, COLOUR_BLACK);
-      display->fillRect(145, 239-val, 3, val, COLOUR_GREEN);
+      float scaled_dB = 2*20*log10(signal_strength);
+      scaled_dB = std::max(std::min(scaled_dB, 149.0f), 0.0f);
+      display->fillRect(scope_x, scope_y-2, 2, scaled_dB, COLOUR_GREEN);
+      display->fillRect(scope_x+scaled_dB, scope_y-2, 2, 150-scaled_dB, COLOUR_BLACK);
+
     }
     count++;
   }
