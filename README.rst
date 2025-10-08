@@ -22,7 +22,7 @@ Install Arduino Pico
 The SSTV code is written in pure C++, but a demo application is provided as an `Arduino library <https://github.com/dawsonjon/PicoSSTV/raw/refs/heads/main/sstv_library.zip>`__. The `Arduino Pico <https://github.com/earlephilhower/arduino-pico>`__ port by Earle Philhower is probably the easiest way to install and configure a C++ development environment for the Raspberry Pi Pico. It is possible to install the tool and get up and running with example applications in just a few minutes. Refer to the `installation instructions <https://github.com/earlephilhower/arduino-pico?tab=readme-ov-file#installing-via-arduino-boards-manager>`__ and the `online documentation <https://arduino-pico.readthedocs.io/en/latest/>`__ to get started.
 
 Install the SSTV library in Arduino Pico
---------------——---------------------
+----------------------------------------
 
 The original SSTV decoder used a very simple circuit, and the code was supplied
 as a simple sketch. I wanted to include a number of new features that would
@@ -35,7 +35,7 @@ providing an Arduino library.
 2. Download the `Arduino SSTV library <https://github.com/dawsonjon/PicoSSTV/raw/refs/heads/main/sstv_library.zip>`__.
 3. Install the library in the Arduino IDE.
 
-  .. image:: images/arduino_library.png
+  .. image:: images/library_install.png
 
 4. Load the SSTV examples.
 
