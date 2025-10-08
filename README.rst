@@ -32,12 +32,13 @@ comprehensive set of features. I decided that the best approach was to move from
 providing an Arduino library. 
 
 1. Install `Arduino IDE <https://support.arduino.cc/hc/en-us/articles/360019833020-Download-and-install-Arduino-IDE#installation-instructions>`__.
-2. Download the `Arduino SSTV library <https://github.com/dawsonjon/PicoSSTV/raw/refs/heads/main/sstv_library.zip>`__.
-3. Install the library in the Arduino IDE.
+2. Install Arduino Pico Core `installation instructions <https://github.com/earlephilhower/arduino-pico?tab=readme-ov-file#installing-via-arduino-boards-manager>`__.
+3. Download the `Arduino SSTV library <https://github.com/dawsonjon/PicoSSTV/raw/refs/heads/main/sstv_library.zip>`__.
+4. Install the library in the Arduino IDE.
 
   .. image:: images/library_install.png
 
-4. Load the SSTV examples.
+5. Load the SSTV examples.
 
   .. image:: images/arduino_examples.png
 
@@ -50,32 +51,39 @@ is the ability to include a number of code examples. I chose to use this
 feature to provide a few different example designs, ranging from the very simple
 to the more complete.
 
-+ **sstv_receive_tft** - Similar to the original design, supporting the original hardware but with new modes.
-+ **sstv_receive_with_sd** - Adds simple automatic SD card logging to the basic design
-+ **sstv_transmit_sd_basic** - A minimal transmit-only example. Transmits an image from SD card.
-+ **sstv_full** - Receive and transmit functionality, SD card storage and full menu driven UI.
+sstv_receive_tft 
+''''''''''''''''
 
-.. figure:: images/tft_circuit.png
+Similar to the original design, supporting the original hardware but with new modes.
+
+.. image:: images/tft_circuit.png
+
+sstv_receive_with_sd 
+''''''''''''''''''''
+
+Adds simple automatic SD card logging to the basic design
+
+.. image:: images/sd_card_circuit.png
+
+sstv_transmit_sd_basic 
+''''''''''''''''''''''
+
+A minimal transmit-only example. Transmits an image from SD card.
+
+.. image:: images/transmit_circuit.png
+
+sstv_full
+'''''''''
+
+Receive and transmit functionality, SD card storage and full menu driven UI.
+
+.. image:: images/full_circuit.png
   
-  Wiring for sstv_receive_tft card example
-
-.. figure:: images/sd_card_circuit.png
-  
-  Wiring for sstv_receive_with_sd card example
-
-.. figure:: images/transmit_circuit.png
-  
-  Wiring for sstv_transmit_sd_basic example
-
-.. figure:: images/full_circuit.png
-
-  Wiring for sstv_full example
-
 
 Documentation
 -------------
 
-For technical details, refer to the `technical documentation <https://101-things.readthedocs.io/en/latest/sstv_decoder.html>`__.
+For technical details, refer to the technical documentation `part 1 <https://101-things.readthedocs.io/en/latest/sstv_decoder.html>`_ and `part 2 <https://101-things.readthedocs.io/en/latest/sstv_decoder_part2.html>`__.
 
 3D-Printed Enclosure
 --------------------
