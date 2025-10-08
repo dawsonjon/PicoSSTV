@@ -32,7 +32,7 @@ comprehensive set of features. I decided that the best approach was to move from
 providing an Arduino library. 
 
 1. Install `Arduino IDE <https://support.arduino.cc/hc/en-us/articles/360019833020-Download-and-install-Arduino-IDE#installation-instructions>`__.
-2. Install Arduino Pico Core `installation instructions <https://github.com/earlephilhower/arduino-pico?tab=readme-ov-file#installing-via-arduino-boards-manager>`__.
+2. Install `Arduino Pico Core <https://github.com/earlephilhower/arduino-pico?tab=readme-ov-file#installing-via-arduino-boards-manager>`__.
 3. Download the `Arduino SSTV library <https://github.com/dawsonjon/PicoSSTV/raw/refs/heads/main/sstv_library.zip>`__.
 4. Install the library in the Arduino IDE.
 
@@ -88,7 +88,7 @@ For technical details, refer to the technical documentation `part 1 <https://101
 3D-Printed Enclosure
 --------------------
 
-A 3D printed enclosure can be found `here <https://github.com/dawsonjon/PicoSSTV.git>`__, including stl files and FreeCAD design files.
+A 3D printed enclosure can be found `here <https://github.com/dawsonjon/PicoSSTV/tree/main/enclosure>`__, including stl files and FreeCAD design files.
 
 
 Other Builds
