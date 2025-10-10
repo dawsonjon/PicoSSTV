@@ -16,7 +16,7 @@
 
 #include <cstdint>
 
-enum e_sstv_tx_mode {tx_martin_m1, tx_martin_m2, tx_scottie_s1, tx_scottie_s2, tx_PD_50, tx_PD_90, tx_PD_120, tx_PD_180};
+enum e_sstv_tx_mode {tx_martin_m1, tx_martin_m2, tx_scottie_s1, tx_scottie_s2, tx_PD_50, tx_PD_90, tx_PD_120, tx_PD_180, tx_robot_36, tx_robot_72};
 
 class c_sstv_encoder
 {
@@ -36,16 +36,17 @@ class c_sstv_encoder
   void generate_scottie(e_sstv_tx_mode mode);
   void generate_martin(e_sstv_tx_mode mode);
   void generate_pd(e_sstv_tx_mode mode);
+  void generate_robot(e_sstv_tx_mode mode);
 
   //override these application specific functions
   virtual void output_sample(int16_t sample) = 0;
   virtual uint8_t get_image_pixel(uint16_t width, uint16_t height, uint16_t y, uint16_t x, uint8_t colour) = 0;
+  virtual void draw_progress_bar(uint16_t width, uint16_t height) {};
 
   public:
   c_sstv_encoder(double fs_Hz);
   void generate_sstv(e_sstv_tx_mode);
   void abort();
-
 };
 
 #endif
