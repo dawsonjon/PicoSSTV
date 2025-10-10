@@ -75,8 +75,10 @@ void c_sstv_encoder :: generate_vis_code(e_sstv_tx_mode mode)
     case tx_martin_m2: vis = 45; break;
     case tx_scottie_s1: vis = 60; break;
     case tx_scottie_s2: vis = 61; break;
-	case tx_robot_36: vis = 8; break;
-	case tx_robot_72: vis = 12; break;
+    case tx_scottie_dx: vis = 79; break;
+	  case tx_robot_24: vis = 4; break;
+	  case tx_robot_36: vis = 8; break;
+	  case tx_robot_72: vis = 12; break;
   }
   generate_tone(1200, 30<<16);//start bit
   for(uint8_t i=0; i<8; ++i)
@@ -112,6 +114,12 @@ void c_sstv_encoder :: generate_scottie(e_sstv_tx_mode mode)
       width = 320;
       height = 240;
       colour_time_ms = 88.064;
+      break;
+
+    case tx_scottie_dx:
+      width = 320;
+      height = 256;
+      colour_time_ms = 345.6;
       break;
 
     default: return;
@@ -316,19 +324,26 @@ void c_sstv_encoder :: generate_robot(e_sstv_tx_mode mode)
 
   switch(mode)
   {
+    case tx_robot_24:
+      width = 160;
+      height = 120;
+      colour_time_ms = 88.0;
+	    hsync_pulse_ms = 9;
+	    colour_gap_ms = 6;
+      break;
     case tx_robot_36:
       width = 320;
       height = 240;
       colour_time_ms = 90.0;
-	  hsync_pulse_ms = 7.5;
-	  colour_gap_ms = 4.5;
+	    hsync_pulse_ms = 7.5;
+	    colour_gap_ms = 4.5;
       break;
-	case tx_robot_72:
+	  case tx_robot_72:
       width = 320;
       height = 240;
       colour_time_ms = 138.0;
-	  hsync_pulse_ms = 9;
-	  colour_gap_ms = 6;
+	    hsync_pulse_ms = 9;
+	    colour_gap_ms = 6;
       break;
 
     default: return;
@@ -345,7 +360,7 @@ void c_sstv_encoder :: generate_robot(e_sstv_tx_mode mode)
     uint8_t row_cb[width];
     uint8_t row_cr[width];
 
-	draw_progress_bar(row,height);
+    draw_progress_bar(row,height);
 	
     for(uint16_t col=0u; col < width; ++col)
     {
@@ -367,16 +382,16 @@ void c_sstv_encoder :: generate_robot(e_sstv_tx_mode mode)
 
     generate_tone(1500, colour_gap_ms_f16);
 	
-	for(uint16_t col=0u; col < width; ++col)
-      generate_tone(1500 + ((2300-1500)*(uint16_t)row_cb[col]/256), pixel_time_ms_f16/2);
+    for(uint16_t col=0u; col < width; ++col)
+        generate_tone(1500 + ((2300-1500)*(uint16_t)row_cb[col]/256), pixel_time_ms_f16/2);
 
-	if (mode==tx_robot_72) {
-		generate_tone(2300, colour_gap_ms_f16);
-	
-		for(uint16_t col=0u; col < width; ++col)
-		  generate_tone(1500 + ((2300-1500)*(uint16_t)row_cr[col]/256), pixel_time_ms_f16/2);
-	
-	}
+    if (mode==tx_robot_72 || mode==tx_robot_24) {
+      generate_tone(2300, colour_gap_ms_f16);
+    
+      for(uint16_t col=0u; col < width; ++col)
+        generate_tone(1500 + ((2300-1500)*(uint16_t)row_cr[col]/256), pixel_time_ms_f16/2);
+    
+    }
 
     for(uint16_t col=0u; col < width; ++col)
     {
@@ -396,20 +411,19 @@ void c_sstv_encoder :: generate_robot(e_sstv_tx_mode mode)
     for(uint16_t col=0u; col < width; ++col)
       generate_tone(1500 + ((2300-1500)*(uint16_t)row_y[col]/256), pixel_time_ms_f16);
 
-	if (mode==tx_robot_72) {
-		generate_tone(1500, colour_gap_ms_f16);
+    if (mode==tx_robot_72 || mode == tx_robot_24) {
+      generate_tone(1500, colour_gap_ms_f16);
 	
-		for(uint16_t col=0u; col < width; ++col)
-		  generate_tone(1500 + ((2300-1500)*(uint16_t)row_cb[col]/256), pixel_time_ms_f16/2);
+      for(uint16_t col=0u; col < width; ++col)
+        generate_tone(1500 + ((2300-1500)*(uint16_t)row_cb[col]/256), pixel_time_ms_f16/2);
 	
-	}
+	  }
 
     generate_tone(2300, colour_gap_ms_f16);
-	
-	for(uint16_t col=0u; col < width; ++col)
-      generate_tone(1500 + ((2300-1500)*(uint16_t)row_cr[col]/256), pixel_time_ms_f16/2);
-    if(m_abort) return;
-  }
+    for(uint16_t col=0u; col < width; ++col)
+        generate_tone(1500 + ((2300-1500)*(uint16_t)row_cr[col]/256), pixel_time_ms_f16/2);
+        if(m_abort) return;
+    }
 }
 
 void c_sstv_encoder :: generate_sstv(e_sstv_tx_mode mode)
@@ -436,10 +450,13 @@ void c_sstv_encoder :: generate_sstv(e_sstv_tx_mode mode)
 
     case tx_scottie_s1:
     case tx_scottie_s2:
+    case tx_scottie_dx:
       generate_scottie(mode);
       break;
-	case tx_robot_36:
-	case tx_robot_72:
+
+    case tx_robot_24:
+    case tx_robot_36:
+    case tx_robot_72:
       generate_robot(mode);
       break;
   }

@@ -16,7 +16,20 @@
 
 #include <cstdint>
 
-enum e_sstv_tx_mode {tx_martin_m1, tx_martin_m2, tx_scottie_s1, tx_scottie_s2, tx_PD_50, tx_PD_90, tx_PD_120, tx_PD_180, tx_robot_36, tx_robot_72};
+enum e_sstv_tx_mode {
+  tx_martin_m1, 
+  tx_martin_m2, 
+  tx_scottie_s1, 
+  tx_scottie_s2, 
+  tx_scottie_dx, 
+  tx_PD_50, 
+  tx_PD_90, 
+  tx_PD_120, 
+  tx_PD_180, 
+  tx_robot_24, 
+  tx_robot_36, 
+  tx_robot_72
+};
 
 class c_sstv_encoder
 {

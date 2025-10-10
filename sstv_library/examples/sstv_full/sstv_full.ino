@@ -799,12 +799,16 @@ void get_transmit_mode(uint8_t & menu_selection)
     "Martin M2",
     "Scottie S1",
     "Scottie S2",
+    "Scottie DX",
     "PD 50",
     "PD 90",
     "PD 120",
-    "PD 180"
+    "PD 180",
+    "Robot 24",
+    "Robot 36",
+    "Robot 72"
   };
-  menu("Transmit Mode", menu_selection, menu_selections, 8);
+  menu("Transmit Mode", menu_selection, menu_selections, 12);
 }
 
 bool menu(const char* title, uint8_t &selection, const char * const menu_items[], uint8_t num_selections)
@@ -814,6 +818,10 @@ bool menu(const char* title, uint8_t &selection, const char * const menu_items[]
   uint8_t offset = 0;
   uint8_t menu_item = selection;
   bool draw = true;
+
+  if(menu_item > offset+num_items_on_screen-1) {
+    offset = menu_item - num_items_on_screen;
+  }
 
   display->fillRect(0, 0, DISPLAY_HEIGHT, DISPLAY_WIDTH, COLOUR_BLACK);
   display->fillRoundedRect(20, 0, 20, DISPLAY_WIDTH-40, 5, COLOUR_BLUE);
