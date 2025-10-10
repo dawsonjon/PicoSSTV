@@ -41,7 +41,7 @@ class c_sstv_encoder
   //override these application specific functions
   virtual void output_sample(int16_t sample) = 0;
   virtual uint8_t get_image_pixel(uint16_t width, uint16_t height, uint16_t y, uint16_t x, uint8_t colour) = 0;
-  virtual void draw_progress_bar(uint16_t width, uint16_t height) {};
+  virtual void draw_progress_bar(uint16_t row, uint16_t tot_height) {};
 
   public:
   c_sstv_encoder(double fs_Hz);
@@ -50,3 +50,4 @@ class c_sstv_encoder
 };
 
 #endif
+
