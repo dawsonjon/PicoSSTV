@@ -518,6 +518,7 @@ void c_sstv_encoder :: generate_sstv(e_sstv_tx_mode mode)
     case tx_scottie_s2:
       generate_scottie(mode);
       break;
+	case tx_robot_24:
 	case tx_robot_36:
 	case tx_robot_72:
       generate_robot(mode);
