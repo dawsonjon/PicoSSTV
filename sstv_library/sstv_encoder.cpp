@@ -75,10 +75,12 @@ void c_sstv_encoder :: generate_vis_code(e_sstv_tx_mode mode)
     case tx_martin_m2: vis = 45; break;
     case tx_scottie_s1: vis = 60; break;
     case tx_scottie_s2: vis = 61; break;
-    case tx_scottie_dx: vis = 79; break;
-	  case tx_robot_24: vis = 4; break;
-	  case tx_robot_36: vis = 8; break;
-	  case tx_robot_72: vis = 12; break;
+	case tx_robot_36: vis = 8; break;
+	case tx_robot_72: vis = 12; break;
+	case tx_bw_8: vis = 2; break;
+	case tx_bw_12: vis = 6; break;
+	case tx_bw_24: vis = 10; break;
+	case tx_bw_36: vis = 14; break;
   }
   generate_tone(1200, 30<<16);//start bit
   for(uint8_t i=0; i<8; ++i)
@@ -114,12 +116,6 @@ void c_sstv_encoder :: generate_scottie(e_sstv_tx_mode mode)
       width = 320;
       height = 240;
       colour_time_ms = 88.064;
-      break;
-
-    case tx_scottie_dx:
-      width = 320;
-      height = 256;
-      colour_time_ms = 345.6;
       break;
 
     default: return;
@@ -426,6 +422,76 @@ void c_sstv_encoder :: generate_robot(e_sstv_tx_mode mode)
     }
 }
 
+void c_sstv_encoder :: generate_bw(e_sstv_tx_mode mode)
+{
+  uint16_t width, height;
+  float hsync_pulse_ms;
+  float scan_line_ms;
+
+  switch(mode)
+  {
+    case tx_bw_8:
+      width = 160;
+      height = 120;
+	  hsync_pulse_ms = 10;
+	  scan_line_ms = 56;
+	  break;
+	case tx_bw_12:
+      width = 160;
+      height = 120;
+	  hsync_pulse_ms = 7;
+	  scan_line_ms = 93;
+	  break;
+	case tx_bw_24:
+      width = 320;
+      height = 240;
+	  hsync_pulse_ms = 12;
+	  scan_line_ms = 88;
+	  break;
+	case tx_bw_36:
+      width = 320;
+      height = 240;
+	  hsync_pulse_ms = 12;
+	  scan_line_ms = 138;
+      break;
+	
+
+    default: return;
+  }
+  uint32_t hsync_pulse_ms_f16 = hsync_pulse_ms * (1<<16); 
+  uint32_t scan_line_ms_f16 = scan_line_ms * (1<<16);
+  uint32_t pixel_time_ms_f16 = (scan_line_ms *(1<<16))/width;
+
+  //send rows
+  for(uint16_t row=0u; row < height; row++)
+  {
+    uint8_t row_y[width];
+
+	draw_progress_bar(row,height);
+	
+    for(uint16_t col=0u; col < width; ++col)
+    {
+      uint8_t r = get_image_pixel(width, height, row, col, 0);
+      uint8_t g = get_image_pixel(width, height, row, col, 1);
+      uint8_t b = get_image_pixel(width, height, row, col, 2);
+      uint8_t y, cr, cb;
+      rgb_to_ycrcb_fixed(r, g, b, y, cr, cb);
+      row_y[col] = y;
+      
+    }
+
+    generate_tone(1200, hsync_pulse_ms_f16);
+
+	
+    for(uint16_t col=0u; col < width; ++col)
+      generate_tone(1500 + ((2300-1500)*(uint16_t)row_y[col]/256), pixel_time_ms_f16);
+
+   
+    if(m_abort) return;
+  }
+}
+
+
 void c_sstv_encoder :: generate_sstv(e_sstv_tx_mode mode)
 {
   m_abort = false;
@@ -450,14 +516,17 @@ void c_sstv_encoder :: generate_sstv(e_sstv_tx_mode mode)
 
     case tx_scottie_s1:
     case tx_scottie_s2:
-    case tx_scottie_dx:
       generate_scottie(mode);
       break;
-
-    case tx_robot_24:
-    case tx_robot_36:
-    case tx_robot_72:
+	case tx_robot_36:
+	case tx_robot_72:
       generate_robot(mode);
+      break;
+	case tx_bw_8:
+	case tx_bw_12:
+	case tx_bw_24:
+	case tx_bw_36:
+      generate_bw(mode);
       break;
   }
 }
