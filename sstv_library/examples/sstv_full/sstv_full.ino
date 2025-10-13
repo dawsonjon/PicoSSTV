@@ -806,9 +806,13 @@ void get_transmit_mode(uint8_t & menu_selection)
     "PD 180",
     "Robot 24",
     "Robot 36",
-    "Robot 72"
+    "Robot 72",
+    "Robot B&W 8",
+    "Robot B&W 12",
+    "Robot B&W 24",
+    "Robot B&W 36",
   };
-  menu("Transmit Mode", menu_selection, menu_selections, 12);
+  menu("Transmit Mode", menu_selection, menu_selections, 16);
 }
 
 bool menu(const char* title, uint8_t &selection, const char * const menu_items[], uint8_t num_selections)
