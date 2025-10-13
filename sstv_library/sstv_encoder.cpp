@@ -75,6 +75,8 @@ void c_sstv_encoder :: generate_vis_code(e_sstv_tx_mode mode)
     case tx_martin_m2: vis = 45; break;
     case tx_scottie_s1: vis = 60; break;
     case tx_scottie_s2: vis = 61; break;
+	case tx_scottie_dx: vis = 79; break;
+	case tx_robot_24: vis = 4; break;
 	case tx_robot_36: vis = 8; break;
 	case tx_robot_72: vis = 12; break;
 	case tx_bw_8: vis = 2; break;
@@ -118,6 +120,12 @@ void c_sstv_encoder :: generate_scottie(e_sstv_tx_mode mode)
       colour_time_ms = 88.064;
       break;
 
+	  case tx_scottie_dx:
+      width = 320;
+      height = 256;
+      colour_time_ms = 345.6;
+      break;
+	  
     default: return;
   }
 
@@ -513,9 +521,9 @@ void c_sstv_encoder :: generate_sstv(e_sstv_tx_mode mode)
     case tx_martin_m2:
       generate_martin(mode);
       break;
-
     case tx_scottie_s1:
     case tx_scottie_s2:
+	case tx_scottie_dx:
       generate_scottie(mode);
       break;
 	case tx_robot_24:
