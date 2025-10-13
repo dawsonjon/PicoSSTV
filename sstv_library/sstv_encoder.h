@@ -28,8 +28,13 @@ enum e_sstv_tx_mode {
   tx_PD_180, 
   tx_robot_24, 
   tx_robot_36, 
-  tx_robot_72
+  tx_robot_72,
+  tx_bw_8,
+  tx_bw_12,
+  tx_bw_24,
+  tx_bw_36
 };
+
 
 class c_sstv_encoder
 {
@@ -50,6 +55,7 @@ class c_sstv_encoder
   void generate_martin(e_sstv_tx_mode mode);
   void generate_pd(e_sstv_tx_mode mode);
   void generate_robot(e_sstv_tx_mode mode);
+  void generate_bw(e_sstv_tx_mode mode);
 
   //override these application specific functions
   virtual void output_sample(int16_t sample) = 0;
@@ -63,4 +69,3 @@ class c_sstv_encoder
 };
 
 #endif
-
