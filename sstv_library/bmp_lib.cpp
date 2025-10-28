@@ -52,7 +52,7 @@ void c_bmp_writer :: open(const char* filename, uint16_t width, uint16_t height)
         .biPlanes = 1,
         .biBitCount = 24,
         .biCompression = 0,
-        .biSizeImage = m_image_size,
+        .biSizeImage = 0,
         .biXPelsPerMeter = 0x0B13,
         .biYPelsPerMeter = 0x0B13,
         .biClrUsed = 0,
@@ -86,9 +86,12 @@ void c_bmp_writer :: change_height(uint16_t height)
 //If the width or height change, it will be necassary to update the file header
 void c_bmp_writer :: update_header()
 {
+    uint32_t file_end = file_tell();
+    uint32_t file_size = file_end;
+
     BMPFileHeader file_header = {
         .bfType = 0x4D42,
-        .bfSize = static_cast<uint32_t>(sizeof(BMPFileHeader) + sizeof(BMPInfoHeader) + m_image_size),
+        .bfSize = file_size,
         .bfReserved1 = 0,
         .bfReserved2 = 0,
         .bfOffBits = sizeof(BMPFileHeader) + sizeof(BMPInfoHeader),
@@ -101,7 +104,7 @@ void c_bmp_writer :: update_header()
         .biPlanes = 1,
         .biBitCount = 24,
         .biCompression = 0,
-        .biSizeImage = m_image_size,
+        .biSizeImage = 0,
         .biXPelsPerMeter = 0x0B13,
         .biYPelsPerMeter = 0x0B13,
         .biClrUsed = 0,

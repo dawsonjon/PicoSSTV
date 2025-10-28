@@ -20,7 +20,12 @@ class c_bmp_writer_stdio : public c_bmp_writer
 
     void file_seek(uint32_t offset)
     {
-        fseek(f, offset, SEEK_SET);
+      fseek(f, offset, SEEK_SET);
+    }
+
+    uint32_t file_tell()
+    {
+      return ftell(f);
     }
 
     FILE* f;

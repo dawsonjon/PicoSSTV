@@ -101,7 +101,12 @@ class c_bmp_writer_stdio : public c_bmp_writer
 
     void file_seek(uint32_t offset)
     {
-        fseek(f, offset, SEEK_SET);
+      fseek(f, offset, SEEK_SET);
+    }
+    
+    uint32_t file_tell()
+    {
+      return ftell(f);
     }
 
     FILE* f;
@@ -122,10 +127,10 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
   int16_t get_audio_sample()
   {
     static int16_t *samples;
-    static uint16_t sample_number = 1024;
+    static uint16_t sample_number = ADC_AUDIO_BLOCK_SIZE;
 
     //if we reach the end of a block request a new one
-    if(sample_number == 1024)
+    if(sample_number == ADC_AUDIO_BLOCK_SIZE)
     {
       //fetch a new block of 1024 samples
       samples = adc_audio.input_samples();
