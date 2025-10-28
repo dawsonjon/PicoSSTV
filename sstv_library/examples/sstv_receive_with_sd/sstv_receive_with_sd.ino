@@ -103,11 +103,6 @@ class c_bmp_writer_stdio : public c_bmp_writer
     {
       fseek(f, offset, SEEK_SET);
     }
-    
-    uint32_t file_tell()
-    {
-      return ftell(f);
-    }
 
     FILE* f;
 };
@@ -127,10 +122,10 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
   int16_t get_audio_sample()
   {
     static int16_t *samples;
-    static uint16_t sample_number = ADC_AUDIO_BLOCK_SIZE;
+    static uint16_t sample_number = 1024;
 
     //if we reach the end of a block request a new one
-    if(sample_number == ADC_AUDIO_BLOCK_SIZE)
+    if(sample_number == 1024)
     {
       //fetch a new block of 1024 samples
       samples = adc_audio.input_samples();
@@ -149,7 +144,10 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
     output_file.change_height(y+1);
 
     //write unscaled image to bmp file
-    if(++bmp_row_number < height) output_file.write_row_rgb565(line_rgb565);
+    if(++bmp_row_number < height){
+      output_file.change_height(y+1);
+      output_file.write_row_rgb565(line_rgb565);
+    } 
 
     //scale image to fit TFT size
     uint16_t scaled_row[display_width];

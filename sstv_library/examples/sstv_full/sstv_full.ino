@@ -163,8 +163,11 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
   {
     //write unscaled image to bmp file
     output_file.change_width(width);
-    output_file.change_height(y+1);
-    if(++bmp_row_number < height) output_file.write_row_rgb565(line_rgb565);
+    
+    if(++bmp_row_number < height){
+      output_file.change_height(y+1);
+      output_file.write_row_rgb565(line_rgb565);
+    } 
 
     //scale image to fit TFT size
     uint16_t scaled_row[display_width];

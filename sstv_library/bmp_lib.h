@@ -19,12 +19,12 @@ class c_bmp_writer
   uint16_t m_width_padded;
   uint32_t m_image_size;
   uint16_t m_y;
+  uint32_t m_file_size;
 
   virtual bool file_open(const char* filename)=0;
   virtual void file_close()=0;
   virtual void file_write(const void* data, uint32_t element_size, uint32_t num_elements)=0;
   virtual void file_seek(uint32_t offset)=0;
-  virtual uint32_t file_tell()=0;
 
 };
 

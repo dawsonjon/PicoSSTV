@@ -60,7 +60,9 @@ void c_bmp_writer :: open(const char* filename, uint16_t width, uint16_t height)
     };
 
     file_write(&file_header, sizeof(file_header), 1);
+    m_file_size = sizeof(file_header);
     file_write(&info_header, sizeof(info_header), 1);
+    m_file_size += sizeof(info_header);
 
 }
 
@@ -72,7 +74,6 @@ void c_bmp_writer :: change_width(uint16_t width)
     m_width = width;
     m_width_padded = (width * 3 + 3) & ~3;
     m_image_size = m_width_padded * m_height;
-
 }
 
 //It might also be helpful to change the height after the file is opened, we can't tell how many rows
@@ -86,12 +87,10 @@ void c_bmp_writer :: change_height(uint16_t height)
 //If the width or height change, it will be necassary to update the file header
 void c_bmp_writer :: update_header()
 {
-    uint32_t file_end = file_tell();
-    uint32_t file_size = file_end;
 
     BMPFileHeader file_header = {
         .bfType = 0x4D42,
-        .bfSize = file_size,
+        .bfSize = m_file_size,
         .bfReserved1 = 0,
         .bfReserved2 = 0,
         .bfOffBits = sizeof(BMPFileHeader) + sizeof(BMPInfoHeader),
@@ -147,6 +146,7 @@ void c_bmp_writer :: write_row_rgb565(uint16_t* rgb565_data)
     }
 
     file_write(row, m_width_padded, 1);
+    m_file_size += m_width_padded;
     m_y++;
 }
 
@@ -179,6 +179,7 @@ uint8_t c_bmp_reader :: open(const char* filename, uint16_t &width, uint16_t &he
     } else return -3; //unsupported bmp file
 
     file_seek(m_start_of_image);
+    
     return 1;
 
 }

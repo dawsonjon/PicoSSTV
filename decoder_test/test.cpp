@@ -27,11 +27,6 @@ class c_bmp_writer_stdio : public c_bmp_writer
         fwrite(data, element_size, num_elements, f);
     }
 
-    uint32_t file_tell()
-    {
-        return ftell(f);
-    }
-
     FILE* f;
 };
 
