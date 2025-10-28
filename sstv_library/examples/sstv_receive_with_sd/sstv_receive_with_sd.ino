@@ -86,6 +86,10 @@ class c_bmp_writer_stdio : public c_bmp_writer
     bool file_open(const char* filename)
     {
       f = fopen(filename, "wb");
+      //first write to a file seems to take a while
+      //do a dummy write to the file here where it doesn't matter
+      if(f) fwrite("0", 1, 1, f);
+      fseek(f, 0, SEEK_SET);
       return f != 0;
     }
 
@@ -122,10 +126,10 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
   int16_t get_audio_sample()
   {
     static int16_t *samples;
-    static uint16_t sample_number = 1024;
+    static uint16_t sample_number = ADC_BLOCK;
 
     //if we reach the end of a block request a new one
-    if(sample_number == 1024)
+    if(sample_number == ADC_BLOCK)
     {
       //fetch a new block of 1024 samples
       samples = adc_audio.input_samples();

@@ -5,6 +5,10 @@ class c_bmp_writer_stdio : public c_bmp_writer
     bool file_open(const char* filename)
     {
       f = fopen(filename, "wb");
+      //first write to a file seems to take a while
+      //do a dummy write to the file here where it doesn't matter
+      if(f) fwrite("0", 1, 1, f);
+      fseek(f, 0, SEEK_SET);
       return f != 0;
     }
 

@@ -147,9 +147,9 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
   int16_t get_audio_sample()
   {
     static int16_t *samples;
-    static uint16_t sample_number = 1024;
+    static uint16_t sample_number = ADC_BLOCK;
     //if we reach the end of a block request a new one
-    if(sample_number == 1024) {
+    if(sample_number == ADC_BLOCK) {
       //fetch a new block of 1024 samples
       samples = adc_audio.input_samples();
       sample_number = 0;
