@@ -23,6 +23,7 @@ void ADCAudio::begin(const uint8_t audio_pin, const uint32_t audio_sample_rate)
   adc_gpio_init(audio_pin); // I channel (0) - configure pin for ADC use
   const uint32_t usb_clock_frequency = 48000000;
   adc_set_clkdiv((usb_clock_frequency / (audio_sample_rate*2)) - 1);
+  m_audio_sample_rate = audio_sample_rate;
 
   // Configure DMA for ADC transfers
   adc_dma = dma_claim_unused_channel(true);
@@ -51,6 +52,8 @@ int16_t * ADCAudio ::input_samples() {
     
   static uint32_t start = 0;
   uint32_t duration = time_us_32() - start;
+  uint32_t max_duration = 1000000*ADC_BLOCK/m_audio_sample_rate;
+  //Serial.printf("ADC block Duration %lu\n", 100*duration/max_duration);
 
   // wait for ping transfer to complete
   dma_channel_wait_for_finish_blocking(adc_dma);
