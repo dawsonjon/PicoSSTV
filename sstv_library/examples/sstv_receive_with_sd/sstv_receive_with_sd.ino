@@ -183,12 +183,12 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
 
   }
 
-void scope(uint16_t mag, int16_t freq) {
+  void scope(uint16_t mag, int16_t freq) {
 
     const uint16_t scope_x = 168;
-    const uint16_t scope_y = 239;
+    const uint16_t scope_y = 234;
     const uint16_t scope_width = 150;
-
+   
     static uint8_t row=0;
     static uint16_t count=0;
     static uint32_t spectrum[150];
