@@ -1,9 +1,9 @@
-//  _  ___  _   _____ _     _                 
-// / |/ _ \/ | |_   _| |__ (_)_ __   __ _ ___ 
+//  _  ___  _   _____ _     _
+// / |/ _ \/ | |_   _| |__ (_)_ __   __ _ ___
 // | | | | | |   | | | '_ \| | '_ \ / _` / __|
 // | | |_| | |   | | | | | | | | | | (_| \__ \.
 // |_|\___/|_|   |_| |_| |_|_|_| |_|\__, |___/
-//                                  |___/    
+//                                  |___/
 //
 // Copyright (c) Jonathan P Dawson 2025
 // filename: sstv_decoder.ino
@@ -46,7 +46,7 @@
 #define PIN_MISO 12 //not used by TFT but part of SPI bus
 #define PIN_CS   13
 #define PIN_SCK  14
-#define PIN_MOSI 15 
+#define PIN_MOSI 15
 #define PIN_DC   11
 #define SPI_PORT spi1
 
@@ -70,14 +70,14 @@
 //#define ROTATION MIRRORED180DEG
 //#define ROTATION MIRRORED270DEG
 
-//The splash screen should have blue lettering, if you see red lettering 
+//The splash screen should have blue lettering, if you see red lettering
 //try changing the INVERT_COLOURS setting.
 
 //#define INVERT_COLOURS false
 #define INVERT_COLOURS true
 
 //The splash screen should have a black background, if you have a white
-//background try changing this setting. Many thans to ON4ABR for adding 
+//background try changing this setting. Many thans to ON4ABR for adding
 //this option.
 #define INVERT_DISPLAY false
 //#define INVERT_DISPLAY true
@@ -102,9 +102,9 @@ ILI934X *display;
 #define DISPLAY_HEIGHT 240
 #define STATUS_BAR_HEIGHT 20
 
-button button_up(17); 
-button button_down(20); 
-button button_right(21); 
+button button_up(17);
+button button_down(20);
+button button_right(21);
 button button_left(22);
 
 enum e_view_mode {rx_mode, slideshow_mode};
@@ -163,11 +163,11 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
   {
     //write unscaled image to bmp file
     output_file.change_width(width);
-    
+
     if(bmp_row_number++ < height){
       output_file.change_height(y+1);
       output_file.write_row_rgb565(line_rgb565);
-    } 
+    }
 
     //scale image to fit TFT size
     uint16_t scaled_row[display_width];
@@ -203,7 +203,7 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
     const uint16_t scope_width = 150;
 
     if(view_mode != rx_mode) return;
-   
+
     static uint8_t row=0;
     static uint16_t count=0;
     static uint32_t spectrum[150];
@@ -213,7 +213,7 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
     const uint8_t Hz_1200 = (1200-1000)*scope_width/1500;
     const uint8_t Hz_1500 = (1500-1000)*scope_width/1500;
     const uint8_t Hz_2300 = (2300-1000)*scope_width/1500;
-   
+
     if (freq < 2450 && f>0 && f<scope_width) {
       spectrum[f] = (spectrum[f] * 15 + mag)/16;
     }
@@ -230,12 +230,12 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
       waterfall[Hz_1500]=COLOUR_RED;
       waterfall[Hz_2300]=COLOUR_RED;
       display->writeHLine(scope_x,scope_y-10+row++,150,waterfall);
-      
+
       for (int i=0;i<scope_width;i++) {
         spectrum[i]=0;
       }
 
-      if (row>7) row=0;   
+      if (row>7) row=0;
       count=0;
 
       // Draw signal bar
@@ -287,13 +287,13 @@ void set_overlay(const char message[])
 //Derive a class from sstv encoder and override hardware specific functions
 const uint16_t audio_buffer_length = 4096u;
 class c_sstv_encoder_pwm : public c_sstv_encoder
-{  
+{
   uint16_t audio_buffer[2][audio_buffer_length];
   uint16_t audio_buffer_index = 0;
   uint8_t ping_pong = 0;
   PWMAudio audio_output;
   uint16_t sample_min, sample_max;
-  
+
   void output_sample(int16_t sample)
   {
     uint16_t scaled_sample = ((sample+32767)>>5);// + 1024;
@@ -313,7 +313,7 @@ class c_sstv_encoder_pwm : public c_sstv_encoder
       sample_min = min(sample_min, scaled_sample);
     }
   }
-  
+
   uint8_t get_image_pixel(uint16_t width, uint16_t height, uint16_t y, uint16_t x, uint8_t colour)
   {
     uint16_t image_y = (uint32_t)y * image_height / height;
@@ -327,7 +327,7 @@ class c_sstv_encoder_pwm : public c_sstv_encoder
       draw_banner(status);
     }
     uint16_t pixel = row[image_x];
-    
+
     //overlay a text banner
     uint16_t overlay_y = (uint32_t)y * overlay_width / width;
     uint16_t overlay_x = (uint32_t)x * overlay_width / width;
@@ -337,28 +337,28 @@ class c_sstv_encoder_pwm : public c_sstv_encoder
       pixel = (pixel >> 8) | (pixel << 8);
     }
 
-    if(colour == 0) return ((pixel >> 11) & 0x1F) << 3;     //r 
+    if(colour == 0) return ((pixel >> 11) & 0x1F) << 3;     //r
     else if(colour == 1) return ((pixel >> 5) & 0x3F) << 2; //g
     else if(colour == 2) return (pixel & 0x1F) << 3;        //b
     else return 0;
   }
-  
+
   c_bmp_reader_stdio bitmap;
   FILE *pcm;
   uint16_t row_number = 0;
   uint16_t row[640];
   uint16_t image_width, image_height;
-  
+
   public:
   void open(const char * bmp_file_name)
-  { 
+  {
     bitmap.open(bmp_file_name, image_width, image_height);
     bitmap.read_row_rgb565(row);
     row_number=0;
     audio_output.begin(0, 15000, rp2040.f_cpu());
   }
   void close()
-  { 
+  {
     bitmap.close();
     audio_output.end();
   }
@@ -379,7 +379,7 @@ class c_slideshow
   uint32_t last_update_time = 0;
 
   public:
-  void launch_slideshow() 
+  void launch_slideshow()
   {
     root = SDFS.openDir("/");
     num_bitmaps = count_bitmaps(root);
@@ -393,7 +393,7 @@ class c_slideshow
     bool redraw = false;
     static const uint16_t timeouts[] = {0, 1, 2, 5, 10, 30, 60, 60*2, 60*5};
     uint16_t timeout_milliseconds = 1000 * timeouts[settings.slideshow_timeout];
-    
+
     if(((millis() - last_update_time) > timeout_milliseconds) && (timeout_milliseconds != 0)) {
       last_update_time = millis();
       if(bitmap_index == num_bitmaps-1) bitmap_index = 0;
@@ -465,7 +465,7 @@ void loop() {
   set_overlay(settings.overlay_text);
 
   while(1) {
-    
+
     //process rx regardless of mode
     static const uint16_t timeouts[] = {UINT16_MAX, 1, 2, 5, 10, 30, 60, 60*2, 60*5};
     const uint16_t timeout_seconds = timeouts[settings.lost_signal_timeout];
@@ -484,7 +484,7 @@ void loop() {
         launch_menu();
         if(view_mode == slideshow_mode) slideshow.launch_slideshow();
         if(view_mode == rx_mode) {
-          display->clear(COLOUR_NAVY); 
+          display->clear(COLOUR_NAVY);
           display->drawString((DISPLAY_WIDTH-(12*strlen("Pico SSTV")))/2, 100, font_16x12, "Pico SSTV", COLOUR_GREY, COLOUR_NAVY);
           draw = true;
         }
@@ -560,7 +560,7 @@ void initialise_sdcard()
 
 void get_new_filename(char *buffer, uint16_t buffer_size)
 {
-  static uint16_t serial_number = 0; 
+  static uint16_t serial_number = 0;
   do {
     snprintf(buffer, buffer_size, "sstv_rx_%u.bmp", serial_number);
     serial_number++;
@@ -604,12 +604,12 @@ uint16_t count_bitmaps(Dir &root)
   root.rewind();
   while(root.next()) {
     String filename = root.fileName();
-    if(root.isFile() && filename.endsWith(".bmp")) count++; 
+    if(root.isFile() && filename.endsWith(".bmp")) count++;
   }
   return count;
 }
 
-void get_bitmap_index(Dir &root, uint16_t index) 
+void get_bitmap_index(Dir &root, uint16_t index)
 {
   uint16_t count = 0;
   root.rewind();
@@ -643,7 +643,7 @@ void tx_file_browser() {
   if(num_bitmaps == 0) return;
   uint16_t bitmap_index = 0;
   String filename;
-  
+
   while(1) {
     if(button_up.is_pressed()) {
       if(bitmap_index == num_bitmaps-1) bitmap_index = 0;
@@ -693,8 +693,8 @@ void display_image(const char* filename, bool show_overlay)
     uint16_t scaled_row[display_width];
     uint16_t pixel_number = 0;
     uint16_t overlay_y = (uint32_t)y * overlay_width / width;
-    
-    //overlay a text banner    
+
+    //overlay a text banner
     if(show_overlay && overlay_y<overlay_height) {
       for(uint16_t x=0; x<width; x++) {
         uint16_t overlay_x = ((uint32_t)x * overlay_width + (overlay_width/2))/ width;
@@ -776,7 +776,7 @@ void launch_menu()
       }
     }
     save();
-  } 
+  }
 }
 
 void get_timeout_seconds(const char* title, uint8_t & menu_selection)
@@ -836,13 +836,13 @@ bool menu(const char* title, uint8_t &selection, const char * const menu_items[]
   uint16_t width = strlen(title)*12;
   display->drawString((DISPLAY_WIDTH-width)/2, 2, font_16x12, title, COLOUR_WHITE, COLOUR_BLUE);
   draw_button_bar("OK", "Cancel", "Up", "Down");
-  
+
   while(1) {
-    if(button_down.is_pressed() && menu_item > 0){menu_item--; draw = true;} 
+    if(button_down.is_pressed() && menu_item > 0){menu_item--; draw = true;}
     if(button_up.is_pressed() && menu_item < num_menu_items-1){menu_item++; draw = true;}
     if(button_left.is_pressed()){selection = menu_item; return true;} //ok
     if(button_right.is_pressed()) return false; //cancel
-    if(menu_item < offset) {display->fillRect(0, 20, 200, 320, COLOUR_BLACK); offset--;} 
+    if(menu_item < offset) {display->fillRect(0, 20, 200, 320, COLOUR_BLACK); offset--;}
     if(menu_item > offset+num_items_on_screen-1) {display->fillRect(0, 20, 200, 320, COLOUR_BLACK); offset++;}
 
     if(draw) {
@@ -854,7 +854,7 @@ bool menu(const char* title, uint8_t &selection, const char * const menu_items[]
           const bool active = menu_item == menu_item_index;
           if(active) display->fillCircle(10, 40 + ((idx)*25), 5, COLOUR_BLUE);
           display->drawString(40, 32 + ((idx)*25), font_16x12, menu_items[menu_item_index],  active?COLOUR_BLUE:COLOUR_GREY, COLOUR_BLACK);
-        } 
+        }
       }
       draw = false;
     }
@@ -893,7 +893,7 @@ uint8_t get_char0()
 
   while(1) {
     for(uint8_t i=0; i<4; i++) {
-      if(buttons[i]->is_pressed()) return i; 
+      if(buttons[i]->is_pressed()) return i;
     }
   }
 }
@@ -908,7 +908,7 @@ uint8_t get_char1(uint8_t sel1)
   }
   while(1) {
     for(uint8_t i=0; i<4; i++) {
-      if(buttons[i]->is_pressed()) return i; 
+      if(buttons[i]->is_pressed()) return i;
     }
   }
 }
@@ -927,7 +927,7 @@ uint8_t get_char2(uint8_t sel0, uint8_t sel1)
   }
   while(1) {
     for(uint8_t i=0; i<4; i++) {
-      if(buttons[i]->is_pressed()) return i; 
+      if(buttons[i]->is_pressed()) return i;
     }
   }
 }

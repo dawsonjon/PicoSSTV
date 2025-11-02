@@ -1,9 +1,9 @@
-//  _  ___  _   _____ _     _                 
-// / |/ _ \/ | |_   _| |__ (_)_ __   __ _ ___ 
+//  _  ___  _   _____ _     _
+// / |/ _ \/ | |_   _| |__ (_)_ __   __ _ ___
 // | | | | | |   | | | '_ \| | '_ \ / _` / __|
 // | | |_| | |   | | | | | | | | | | (_| \__ \.
 // |_|\___/|_|   |_| |_| |_|_|_| |_|\__, |___/
-//                                  |___/    
+//                                  |___/
 //
 // Copyright (c) Jonathan P Dawson 2025
 // filename: sstv_decoder.ino
@@ -34,7 +34,7 @@
 #define PIN_MISO 12 //not used by TFT but part of SPI bus
 #define PIN_CS   13
 #define PIN_SCK  14
-#define PIN_MOSI 15 
+#define PIN_MOSI 15
 #define PIN_DC   11
 #define SPI_PORT spi1
 
@@ -58,14 +58,14 @@
 //#define ROTATION MIRRORED180DEG
 //#define ROTATION MIRRORED270DEG
 
-//The splash screen should have blue lettering, if you see red lettering 
+//The splash screen should have blue lettering, if you see red lettering
 //try changing the INVERT_COLOURS setting.
 
 //#define INVERT_COLOURS false
 #define INVERT_COLOURS true
 
 //The splash screen should have a black background, if you have a white
-//background try changing this setting. Many thans to ON4ABR for adding 
+//background try changing this setting. Many thans to ON4ABR for adding
 //this option.
 #define INVERT_DISPLAY false
 //#define INVERT_DISPLAY true
@@ -151,7 +151,7 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
     if(bmp_row_number++ < height){
       output_file.change_height(y+1);
       output_file.write_row_rgb565(line_rgb565);
-    } 
+    }
 
     //scale image to fit TFT size
     uint16_t scaled_row[display_width];
@@ -188,7 +188,7 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
     const uint16_t scope_x = 168;
     const uint16_t scope_y = 234;
     const uint16_t scope_width = 150;
-   
+
     static uint8_t row=0;
     static uint16_t count=0;
     static uint32_t spectrum[150];
@@ -198,7 +198,7 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
     const uint8_t Hz_1200 = (1200-1000)*scope_width/1500;
     const uint8_t Hz_1500 = (1500-1000)*scope_width/1500;
     const uint8_t Hz_2300 = (2300-1000)*scope_width/1500;
-   
+
     if (freq < 2450 && f>0 && f<scope_width) {
       spectrum[f] = (spectrum[f] * 15 + mag)/16;
     }
@@ -215,12 +215,12 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
       waterfall[Hz_1500]=COLOUR_RED;
       waterfall[Hz_2300]=COLOUR_RED;
       display->writeHLine(scope_x,scope_y-10+row++,150,waterfall);
-      
+
       for (int i=0;i<scope_width;i++) {
         spectrum[i]=0;
       }
 
-      if (row>7) row=0;   
+      if (row>7) row=0;
       count=0;
 
       // Draw signal bar
@@ -233,7 +233,7 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
     count++;
   }
 
-  
+
 
   c_bmp_writer_stdio output_file;
   uint16_t bmp_row_number = 0;
@@ -268,7 +268,7 @@ void setup() {
   Serial.println("Pico SSTV Copyright (C) Jonathan P Dawson 2025");
   Serial.println("github: https://github.com/dawsonjon/101Things");
   Serial.println("docs: 101-things.readthedocs.io");
-  
+
   configure_display();
   initialise_sdcard();
   VFS.root(SDFS);
@@ -352,7 +352,7 @@ void initialise_sdcard()
 
 void get_new_filename(char *buffer, uint16_t buffer_size)
 {
-  static uint16_t serial_number = 0; 
+  static uint16_t serial_number = 0;
   do{
     snprintf(buffer, buffer_size, "sstv_rx_%u.bmp", serial_number);
     serial_number++;
