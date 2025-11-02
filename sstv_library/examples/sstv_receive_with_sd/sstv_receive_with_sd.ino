@@ -148,7 +148,7 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
     output_file.change_height(y+1);
 
     //write unscaled image to bmp file
-    if(++bmp_row_number < height){
+    if(bmp_row_number++ < height){
       output_file.change_height(y+1);
       output_file.write_row_rgb565(line_rgb565);
     } 
