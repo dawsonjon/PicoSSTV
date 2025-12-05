@@ -845,6 +845,7 @@ bool c_sstv_decoder :: decode_image_non_blocking(uint8_t timeout_s, bool slant_c
   uint8_t pixel;
   bool pixel_complete, line_complete, image_complete;
 
+
   int16_t sample = get_frequency_sample();
   decode_sample(sample, pixel_y, pixel_x, pixel_colour, pixel, pixel_complete, line_complete, image_complete);
 

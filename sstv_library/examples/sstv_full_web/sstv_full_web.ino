@@ -36,11 +36,19 @@
 #include <SDFS.h>
 #include <VFS.h>
 #include <EEPROM.h>
-
 #include <vector>
 #include <string>
 #include <algorithm>
 
+
+#include <WiFi.h>
+#include <WiFiServer.h>
+
+const char* ssid     = "Undixedda noa";
+const char* password = "Miagolina25!";
+
+WiFiServer server(80);
+bool connected=false;
 
 //CONFIGURATION SECTION
 ///////////////////////////////////////////////////////////////////////////////
@@ -104,7 +112,7 @@ ILI934X *display;
 #define DISPLAY_HEIGHT 240
 #define STATUS_BAR_HEIGHT 20
 
-button button_up(17); 
+button button_up(26); //17
 button button_down(20); 
 button button_right(21); 
 button button_left(22);
@@ -128,7 +136,7 @@ struct s_settings {
 
 s_settings settings = {
   3, //5 seconds
-  5, //30 seconds
+  3, //30 seconds
   1, //martin m2
   1,  //auto slant correction on
   1,
@@ -142,6 +150,7 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
 {
   ADCAudio adc_audio;
   uint16_t tft_row_number = 0;
+  float progress=0;
   const uint16_t display_width = DISPLAY_WIDTH;
   const uint16_t display_height = DISPLAY_HEIGHT - STATUS_BAR_HEIGHT; //allow space for status bar
 
@@ -189,11 +198,14 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
     //update progress
     char buffer[21];
     snprintf(buffer, 21, "%10s: %ux%u", mode_string, width, y+1);
-    draw_status_bar("RX Incoming ...");
+    draw_status_bar("RX In ...");
     draw_banner(buffer);
     Serial.println(buffer);
 
+    progress=y/(float)height;
   }
+
+  
 
   void scope(uint16_t mag, int16_t freq) {
 
@@ -252,10 +264,15 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
     count++;
   }
 
+  
   c_bmp_writer_stdio output_file;
   uint16_t bmp_row_number = 0;
 
   public:
+
+  float getProgress() {
+    return progress;
+  }
 
   void open(const char* bmp_file_name){
     tft_row_number = 0;
@@ -448,6 +465,8 @@ void setup() {
   configure_display();
   initialise_sdcard();
   VFS.root(SDFS);
+  
+  WiFi.begin(ssid, password);
 
 }
 
@@ -461,6 +480,7 @@ void loop() {
   c_slideshow slideshow;
   bool draw = true;
   bool image_in_progress = false;
+  bool last_image_in_progress = false;
   bool image_complete = false;
   view_mode = rx_mode;
   draw_blank_screen();
@@ -470,20 +490,34 @@ void loop() {
 
   while(1) {
 
-        
+    poll_wifi();
     //process rx regardless of mode
     static const uint16_t timeouts[] = {UINT16_MAX, 1, 2, 5, 10, 30, 60, 60*2, 60*5};
     const uint16_t timeout_seconds = timeouts[settings.lost_signal_timeout];
+    
     image_complete = sstv_decoder.decode_image_non_blocking(timeout_seconds, settings.auto_slant_correction, image_in_progress);
+    
+    if ((image_in_progress)&&(!last_image_in_progress)) {
+      draw_blank_screen();
+      draw_button_bar("", "Stop", "", "");
+    }
+    last_image_in_progress=image_in_progress;
+    
     if(image_complete) {
       sstv_decoder.close();
-      SDFS.rename("temp", rx_filename);
-      get_new_filename(rx_filename, 100);
+      if (sstv_decoder.getProgress()>0.5) {
+        SDFS.rename("temp", rx_filename);
+        get_new_filename(rx_filename, 100);
+      }
       sstv_decoder.open("temp");
       draw = true;
     }
     if(image_in_progress) {
       view_mode = rx_mode;
+      if (button_right.is_pressed()) {
+          sstv_decoder.stop();
+          return;
+      }
     } else {
       if(button_left.is_pressed()) {
         launch_menu();
@@ -497,13 +531,25 @@ void loop() {
     if(view_mode == slideshow_mode) {
       slideshow.update_slideshow();
     } else if(view_mode == rx_mode && draw) {
-      draw_button_bar("Menu", "", "", "");
+      if (WiFi.status() != WL_CONNECTED) {
+        draw_button_bar("Menu", "", "", "");
+        connected=false;
+      } else {
+        draw_button_bar("Menu", "wifi", "", "");
+      }
       display->fillRect(DISPLAY_WIDTH/2, DISPLAY_HEIGHT-STATUS_BAR_HEIGHT-1, STATUS_BAR_HEIGHT, DISPLAY_WIDTH/2, COLOUR_BLACK);
       draw = false;
     }
+     
+    if ((WiFi.status() == WL_CONNECTED)&&(!connected)) {
+      server.begin();
+      connected=true;
+    }
+  
 
   }
   sstv_decoder.stop();
+  
 }
 
 void draw_splash_screen()
@@ -586,7 +632,7 @@ void draw_banner(const char* message, uint16_t y)
 
 void draw_status_bar(const char* message)
 {
-  display->fillRect(0, DISPLAY_HEIGHT-STATUS_BAR_HEIGHT-1, STATUS_BAR_HEIGHT, DISPLAY_WIDTH/2, COLOUR_BLACK);
+  display->fillRect(0, DISPLAY_HEIGHT-STATUS_BAR_HEIGHT-1, STATUS_BAR_HEIGHT, DISPLAY_WIDTH/4, COLOUR_BLACK);
   #define MARGIN ((STATUS_BAR_HEIGHT - 8)/2)
   display->drawString(MARGIN, DISPLAY_HEIGHT-STATUS_BAR_HEIGHT+MARGIN, font_8x5, message, COLOUR_WHITE, COLOUR_BLACK);
 }
@@ -747,7 +793,10 @@ void launch_menu()
     "Slideshow",
     "Settings"
   };
-  menu("Menu", menu_selection, menu_selections, 4);
+
+  String title="Menu "+WiFi.localIP().toString();
+
+  menu(title.c_str(), menu_selection, menu_selections, 4);
   if(menu_selection == 0) {
     view_mode = rx_mode;
     return;
@@ -985,4 +1034,121 @@ void load() {
   uint32_t scores_stored = 0;
   EEPROM.get(0, scores_stored);
   if(scores_stored == 125) EEPROM.get(4, settings);
+}
+
+bool isImage(String name) {
+  name.toLowerCase();
+  return name.endsWith(".bmp");
+}
+
+void sendImage(WiFiClient &client, String filename) {
+  FILE* file = fopen(filename.c_str(), "rb");
+  if (file==NULL) {
+    client.println("HTTP/1.1 404 Not Found\r\n");
+    client.println("Content-Type: text/plain\r\n\r\nFile not found");
+    return;
+  }
+
+  String contentType = "application/octet-stream";
+  contentType = "image/bmp";
+
+  client.println("HTTP/1.0 200 OK");
+  client.println("Content-Type: " + contentType);
+  client.println("Connection: close");
+  client.println();
+  int n;
+  uint8_t buffer[1024];
+  while ((n = fread(buffer, 1, sizeof(buffer) - 1, file)) > 0){
+    client.write(buffer, n);
+  } 
+  fclose(file);
+}
+
+void sendGallery(WiFiClient &client, int page) {
+  client.println("HTTP/1.0 200 OK");
+  client.println("Connection: close");
+  client.println("Content-Type: text/html");
+  client.println();
+  client.println("<!DOCTYPE html><html><head><meta charset='UTF-8'>");
+  client.println("<title>Galleria SD</title>");
+  client.println("<style>body{background: antiquewhite;}.foto{float:left;border:1px lightgray solid;padding: 5px;margin:10px;border-radius: 10px;background:white;height:322px;}img{margin:20px;width:320px;border:2px black solid}</style></head>");
+  client.println("<body><h1>Galleria immagini su SD</h1><hr><h2>Pagina ");
+  client.print(page);
+  client.println("</h2><div style='display: inline flow-root list-item;'>");
+
+  Dir root = SDFS.openDir("/");
+  int num=count_bitmaps(root);
+  root.rewind();
+  int n=0;
+  int disp=0;
+
+  while((root.next())&&(disp<4)) {
+    String name = root.fileName();;
+    if (isImage(name)) {
+      if (n>=page*4) {
+        client.print("<div class='foto'>");
+        client.print("<a href=?del=");
+        client.print(name);
+        client.print("><button style='width:100%'>Delete ");
+        client.print(name);
+        client.print("</button></a></br>");
+        client.print("<a href='img/");
+        client.print(name);
+        client.print("'><img src='img/");
+        client.print(name);
+        client.print("' /></a>");
+       
+        client.print("</div>");
+        disp++;
+      }
+      n++;
+    }
+  }
+  client.print("</div><hr>");
+
+  for (int i=0;i<=num/4;i++) {
+    client.println("<a href='?page=");
+    client.print(i);
+    client.println("'><button>Page ");
+    client.print(i);
+    client.print("</button></a>");
+  }
+
+  client.println("</body></html>");
+  
+}
+
+void poll_wifi() {
+  static int page=0;
+  WiFiClient client = server.accept();
+ 
+  if (!client) return;
+
+  String request = client.readStringUntil('\r');
+  client.readStringUntil('\n');
+  request=request.substring(5,request.length()-8); //Remove "GET /" and "HTTP 1.1"
+
+  if (request.startsWith("img/")) {
+    int pos = request.indexOf('/');
+    String filename = request.substring(4);
+    filename.trim();
+    Serial.println(filename);
+    sendImage(client, filename);
+  } else
+  if (request.startsWith("?del=")) {
+    String filename = request.substring(5);
+    Serial.print("deleting ");
+    Serial.println(filename);
+    SDFS.remove(filename);
+    sendGallery(client,page);
+  } else if (request.startsWith("?page=")) {
+    page=request.substring(6).toInt();
+    sendGallery(client,page);
+  } else
+   {
+    sendGallery(client,page);
+  }
+
+  delay(1);
+  client.flush();
 }

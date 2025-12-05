@@ -122,12 +122,12 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
   int16_t get_audio_sample()
   {
     static int16_t *samples;
-    static uint16_t sample_number = 1024;
+    static uint16_t sample_number = ADC_BLOCK;
 
     //if we reach the end of a block request a new one
-    if(sample_number == 1024)
+    if(sample_number == ADC_BLOCK)
     {
-      //fetch a new block of 1024 samples
+      //fetch a new block of ADC_BLOCK samples
       samples = adc_audio.input_samples();
       sample_number = 0;
     }
@@ -187,6 +187,8 @@ void scope(uint16_t mag, int16_t freq) {
     static uint32_t spectrum[150];
     static uint32_t signal_strength = 0;
 
+    static uint32_t waterfall_amp = 6;
+
     const int8_t f=(freq-1000)*150/1500;
     const uint8_t Hz_1200 = (1200-1000)*scope_width/1500;
     const uint8_t Hz_1500 = (1500-1000)*scope_width/1500;
@@ -197,12 +199,13 @@ void scope(uint16_t mag, int16_t freq) {
     }
     signal_strength = (signal_strength * 15 + mag)/16;
     if (count>200 ) {
-      display->drawRect(scope_x-1, scope_y-12, 14, scope_width+3, COLOUR_WHITE);
+      display->drawRect(scope_x-1, scope_y-12, 10, scope_width+3, COLOUR_WHITE);
       uint16_t waterfall[scope_width];
       for (int i=0;i<150;i++) {
-        float scaled_dB = 2*20*log10(spectrum[i]);
+        float scaled_dB = waterfall_amp*20*log10(spectrum[i]);
         scaled_dB = std::max(std::min(scaled_dB, 255.0f), 0.0f);
-        waterfall[i]=display->colour565(0, scaled_dB, scaled_dB);
+        float exp=(scaled_dB*scaled_dB)/255;
+        waterfall[i]=display->colour565(exp, exp, scaled_dB);
       }
       waterfall[Hz_1200]=COLOUR_RED;
       waterfall[Hz_1500]=COLOUR_RED;
@@ -210,10 +213,10 @@ void scope(uint16_t mag, int16_t freq) {
       display->writeHLine(scope_x,scope_y-10+row++,150,waterfall);
       
       for (int i=0;i<scope_width;i++) {
-        spectrum[i]=0;
+        spectrum[i]/=2;
       }
 
-      if (row>7) row=0;   
+      if (row>6) row=0;   
       count=0;
 
       // Draw signal bar
@@ -277,6 +280,7 @@ void loop() {
 
   while(1)
   {
+    display->clear();
     sstv_decoder.decode_image(LOST_SIGNAL_TIMEOUT_SECONDS, ENABLE_SLANT_CORRECTION);
     sstv_decoder.close();
     SDFS.rename("temp", filename);
@@ -308,6 +312,8 @@ void configure_display()
   display->powerOn(true);
   display->clear();
   draw_splash_screen();
+  delay(3000);
+  
 }
 
 void initialise_sdcard()
@@ -340,6 +346,7 @@ void initialise_sdcard()
     return;
   }
   Serial.println("initialization done.");
+  display->drawString(120, 220, font_8x5,"SD", COLOUR_WHITE, COLOUR_BLACK);
 
 }
 
