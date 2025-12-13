@@ -2,6 +2,7 @@
 #define __FRAME_BUFFER_H__
 
 #include <cstdint>
+#include "gfxfont.h"
 
 class c_frame_buffer
 {
@@ -22,6 +23,7 @@ class c_frame_buffer
   void draw_circle(uint16_t xc, uint16_t yc, uint16_t radius, uint16_t colour, uint16_t alpha=256);
   void draw_string(uint16_t x, uint16_t y, const uint8_t *font, const char *s, uint16_t fg, uint16_t alpha=256);
   void draw_char(uint16_t x, uint16_t y, const uint8_t *font, char c, uint16_t fg, uint16_t alpha=256);
+  void draw_string(uint16_t x, uint16_t y, const GFXfont *font, const char *s, uint16_t fg, uint16_t alpha=256);
   void fill_rect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t colour, uint16_t alpha=256);
   void draw_rect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t colour, uint16_t alpha=256);
   void draw_object(uint16_t x, uint16_t y, uint16_t r, const uint16_t* image);

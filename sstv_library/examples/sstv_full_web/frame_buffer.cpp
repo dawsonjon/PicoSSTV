@@ -1,5 +1,18 @@
 #include <cmath>
 #include "frame_buffer.h"
+#include "gfxfont.h"
+#include <cstring>
+
+#ifndef pgm_read_byte
+#define pgm_read_byte(addr) (*(const uint8_t *)(addr))
+#endif
+#ifndef pgm_read_word
+#define pgm_read_word(addr) (*(const uint16_t *)(addr))
+#endif
+#ifndef pgm_read_dword
+#define pgm_read_dword(addr) (*(const uint32_t *)(addr))
+#endif
+
 
 void c_frame_buffer :: set_pixel(uint16_t x, uint16_t y, uint16_t colour, uint16_t alpha)
 {
@@ -78,6 +91,40 @@ void c_frame_buffer::draw_string(uint16_t x, uint16_t y, const uint8_t *font, co
       draw_char(x_n, y, font, *(s++), fg, alpha);
   }
 }
+
+void c_frame_buffer::draw_string(uint16_t x, uint16_t y, const GFXfont *font, const char *s, uint16_t fg, uint16_t alpha) {
+    for (int i=0;i<strlen(s);i++) 
+	{
+	
+		char c = s[i] - (uint8_t)pgm_read_byte(&font->first);
+		GFXglyph *glyph = font->glyph + c;
+		uint8_t *bitmap = font->bitmap;
+		uint16_t bo = pgm_read_word(&glyph->bitmapOffset);
+		uint8_t w = pgm_read_byte(&glyph->width), h = pgm_read_byte(&glyph->height);
+		int8_t xo = pgm_read_byte(&glyph->xOffset),
+			   yo = pgm_read_byte(&glyph->yOffset);
+		uint8_t xx, yy, bits = 0, bit = 0;
+		uint8_t xadv=pgm_read_byte(&glyph->xAdvance);
+
+		for (yy = 0; yy < h; yy++)
+		{
+			for (xx = 0; xx < w; xx++)
+			{
+				if (!(bit++ & 7))
+				{
+					bits = pgm_read_byte(&bitmap[bo++]);
+				}
+				if (bits & 0x80)
+				{
+					set_pixel(x + xo + xx, y + yo + yy, fg,alpha);
+				}
+				bits <<= 1;
+			}
+		}
+		x+=xadv+xo;
+	}
+}
+
 
 void c_frame_buffer::draw_char(uint16_t x, uint16_t y, const uint8_t *font, char c, uint16_t fg, uint16_t alpha) 
 {
