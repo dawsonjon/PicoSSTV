@@ -86,6 +86,10 @@ class c_bmp_writer_stdio : public c_bmp_writer
     bool file_open(const char* filename)
     {
       f = fopen(filename, "wb");
+      //first write to a file seems to take a while
+      //do a dummy write to the file here where it doesn't matter
+      if(f) fwrite("0", 1, 1, f);
+      fseek(f, 0, SEEK_SET);
       return f != 0;
     }
 
@@ -101,7 +105,7 @@ class c_bmp_writer_stdio : public c_bmp_writer
 
     void file_seek(uint32_t offset)
     {
-        fseek(f, offset, SEEK_SET);
+      fseek(f, offset, SEEK_SET);
     }
 
     FILE* f;
@@ -144,7 +148,10 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
     output_file.change_height(y+1);
 
     //write unscaled image to bmp file
-    if(++bmp_row_number < height) output_file.write_row_rgb565(line_rgb565);
+    if(++bmp_row_number < height){
+      output_file.change_height(y+1);
+      output_file.write_row_rgb565(line_rgb565);
+    } 
 
     //scale image to fit TFT size
     uint16_t scaled_row[display_width];
@@ -176,12 +183,12 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
 
   }
 
-void scope(uint16_t mag, int16_t freq) {
+  void scope(uint16_t mag, int16_t freq) {
 
     const uint16_t scope_x = 168;
-    const uint16_t scope_y = 239;
+    const uint16_t scope_y = 234;
     const uint16_t scope_width = 150;
-
+   
     static uint8_t row=0;
     static uint16_t count=0;
     static uint32_t spectrum[150];

@@ -8,6 +8,8 @@
 #include "hardware/dma.h"
 
 
+static const int ADC_DMA_BLOCK = 4096;
+static const int ADC_BLOCK = 2048;
 class ADCAudio
 {
 
@@ -20,7 +22,8 @@ class ADCAudio
     private:
     int adc_dma;
     dma_channel_config cfg;
-    uint16_t samples[2][4096];
+    uint32_t m_audio_sample_rate;
+    uint16_t samples[2][ADC_DMA_BLOCK];
     uint8_t buffer_number = 0;
     uint16_t dc = 0;
 };

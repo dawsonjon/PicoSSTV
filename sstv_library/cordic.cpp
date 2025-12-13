@@ -33,7 +33,7 @@ void cordic_init() {
 
   // calculate cordic gain
   double gain = 1.0;
-  for (uint8_t idx; idx < cordic_iterations; idx++) {
+  for (uint8_t idx=0; idx < cordic_iterations; idx++) {
     const double d = pow(2.0, idx);
     const double magnitude = sqrt(1 + (1.0 / d) * (1.0 / d));
     gain *= magnitude;
