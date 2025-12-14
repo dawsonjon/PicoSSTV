@@ -1087,7 +1087,8 @@ void rst_entry(char string[])
 
     if (cursor<0) cursor=0;
     if (string[cursor]<' ') string[cursor]=' ';
-    else if ((string[cursor]>' ')&&(string[cursor]<'0')) string[cursor]='0';
+    else if (string[cursor]=='/') string[cursor]=' ';
+    else if (string[cursor]=='!') string[cursor]='0';
     else if (string[cursor]>'9') string[cursor]='9';
     if(cursor == n) return;
     cursor %= n;
