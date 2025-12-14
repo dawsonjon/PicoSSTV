@@ -256,14 +256,17 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
     static uint16_t count=0;
     static uint32_t spectrum[scope_width];
     static uint32_t signal_strength = 0;
+    static uint8_t mean_f=0;
 
     const uint8_t f=(freq-1000)*scope_width/1500;
     const uint8_t Hz_1200 = (1200-1000)*scope_width/1500;
     const uint8_t Hz_1500 = (1500-1000)*scope_width/1500;
     const uint8_t Hz_2300 = (2300-1000)*scope_width/1500;
    
-    if (f>0 && f<scope_width) {
-      spectrum[f] = (spectrum[f] * 15 + mag)/16;
+    mean_f=(mean_f* 7 + f)/8;
+
+    if (mean_f>0 && mean_f<scope_width) {
+      spectrum[mean_f] = (spectrum[mean_f] * 15 + mag)/16;
     }
     signal_strength = (signal_strength * 15 + mag)/16;
     if (count>200 ) {
