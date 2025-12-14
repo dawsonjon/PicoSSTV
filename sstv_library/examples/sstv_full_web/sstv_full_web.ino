@@ -115,6 +115,7 @@ void get_timeout_seconds(const char* title, uint8_t & menu_selection);
 void launch_menu();
 uint16_t count_bitmaps(Dir &root);
 void get_bitmap_index(Dir &root, uint16_t index);
+void create_thumbnail(const char* filename);
 
 ILI934X *display;
 #define DISPLAY_WIDTH 320
@@ -133,6 +134,8 @@ static const uint16_t overlay_width = 320;
 static const uint16_t overlay_height = 256;
 uint16_t overlay_buffer[overlay_width*overlay_height];
 c_frame_buffer overlay(overlay_buffer, overlay_width, overlay_height);
+
+uint16_t scaled_image[214*160];
 
 char txcallsign_text[10]="IS0JSV\0";
 char rxcallsign_text[10];
@@ -540,6 +543,7 @@ void loop() {
       sstv_decoder.close();
       if (sstv_decoder.getProgress()>0.5) {
         SDFS.rename("temp", rx_filename);
+        create_thumbnail(rx_filename);
         get_new_filename(rx_filename, 100);
       }
       sstv_decoder.open("temp");
@@ -562,9 +566,12 @@ void loop() {
       } else if (button_right.is_pressed()) {
         
         text_entry(rxcallsign_text, 10);
-        text_entry(rst_text,3);
+        rst_entry(rst_text);
         rst_text[3]=0;
+        overlay.draw_image(20, 130, 106, 80, scaled_image);
+        overlay.draw_rect(19,129,108,82,COLOUR_WHITE);
         tx_file_browser();
+        draw = true;
       }
 
     }
@@ -790,20 +797,7 @@ void display_image(const char* filename, bool show_overlay)
     uint16_t scaled_row[display_width];
     uint16_t pixel_number = 0;
     uint16_t overlay_y = (uint32_t)y * overlay_width / width;
-    /*
-    //overlay a text banner    
-    if(show_overlay && overlay_y<overlay_height) {
-      for(uint16_t x=0; x<width; x++) {
-        uint16_t overlay_x = ((uint32_t)x * overlay_width + (overlay_width/2))/ width;
-        while(pixel_number <= overlay_x) {
-          //display expects byteswapped data
-          uint16_t pixel = overlay_buffer[(overlay_y*overlay_width) + overlay_x];
-          //pixel = (pixel >> 8) | (pixel << 8);
-          scaled_row[pixel_number] = pixel;
-          pixel_number++;
-        }
-      }
-    } else {*/
+  
       for(uint16_t x=0; x<width; x++) {
         uint16_t scaled_x = (static_cast<uint32_t>(x) * display_width + (display_width/2)) / width;
         uint16_t overlay_x = (uint32_t)x * overlay_width / width;
@@ -815,7 +809,6 @@ void display_image(const char* filename, bool show_overlay)
           pixel_number++;
         }
       }
-    //}
 
     uint32_t scaled_y = (static_cast<uint32_t>(y) * display_height + (display_height/2)) / height;
     while(tft_row_number <= scaled_y) {
@@ -838,6 +831,7 @@ void drawOutlined(uint16_t x, uint16_t y, String msg, uint16_t fg, uint16_t bg )
 
 void drawOverlay(String callsignSender, String callsignReceiver, String msg ) {
 
+    overlay.clear(0);
     if (callsignReceiver=="") callsignReceiver="CQ CQ";
     drawOutlined(20,60,callsignReceiver,COLOUR_YELLOW,COLOUR_WHITE);
     drawOutlined(40,110,msg,COLOUR_ORANGE,COLOUR_WHITE);
@@ -1072,6 +1066,35 @@ void text_entry(char string[], uint8_t n)
   }
 }
 
+void rst_entry(char string[])
+{
+  uint8_t cursor = 0;
+  uint8_t n=3;
+  display->clear(COLOUR_BLACK);
+  display->drawString((DISPLAY_WIDTH-(18*12))/2, 90, font_16x12, "Select RST (or 73)", COLOUR_YELLOW, COLOUR_BLACK);
+  draw_button_bar("<", ">", "+", "-");
+
+  while(1) {
+    
+    display->drawRect((DISPLAY_WIDTH-(n*12))/2, 120, 16, n*12, COLOUR_NAVY);
+    display->drawString((DISPLAY_WIDTH-(n*12))/2, 120, font_16x12, string, COLOUR_WHITE, COLOUR_NAVY);
+    display->drawRect((DISPLAY_WIDTH-(n*12))/2 + cursor*12, 120, 16, 12, COLOUR_RED);
+    
+    if(button_down.is_pressed()) string[cursor]++; 
+    if(button_up.is_pressed()) string[cursor]--;
+    if(button_left.is_pressed()) cursor--;
+    if(button_right.is_pressed()) cursor++;
+
+    if (cursor<0) cursor=0;
+    if (string[cursor]<' ') string[cursor]=' ';
+    else if ((string[cursor]>' ')&&(string[cursor]<'0')) string[cursor]='0';
+    else if (string[cursor]>'9') string[cursor]='9';
+    if(cursor == n) return;
+    cursor %= n;
+    delay(10);
+  }
+}
+
 void save() {
   EEPROM.put(4, settings);
   uint32_t scores_stored = 0;
@@ -1085,6 +1108,36 @@ void load() {
   EEPROM.get(0, scores_stored);
   if(scores_stored == 125) EEPROM.get(4, settings);
 }
+
+void create_thumbnail(const char* filename)
+{
+  c_bmp_reader_stdio bitmap;
+  uint16_t width, height;
+  bitmap.open(filename, width, height);
+
+  const uint16_t t_width = width/3, ty_height = height/3;
+  uint16_t tft_row_number = 0;
+
+  for(uint16_t y=0; y<height; y++) {
+    uint16_t line_rgb565[width];
+    bitmap.read_row_rgb565(line_rgb565);
+
+    uint16_t pixel_number = 0;
+     
+      for(uint16_t x=0; x<width; x++) {
+       
+        while(pixel_number <= x) {
+          //display expects byteswapped data
+          uint16_t pixel=((line_rgb565[x/3] & 0xff) << 8) | ((line_rgb565[x/3] & 0xff00) >> 8);
+          scaled_image[pixel_number+((y/3)*t_width*2)] = pixel;
+          pixel_number++;
+        }
+      } 
+  }
+  bitmap.close();
+}
+
+/////////////////////////////////////////////////////////
 
 #ifdef WIFI
 bool isImage(String name) {
