@@ -563,11 +563,11 @@ void loop() {
           draw_blank_screen();
           draw = true;
         }
-      } else if (button_right.is_pressed()) {
-        
+      } else if (button_right.is_pressed()) {     
         text_entry(rxcallsign_text, 10);
         rst_entry(rst_text);
         rst_text[3]=0;
+        overlay.clear(0);
         overlay.draw_image(20, 130, 106, 80, scaled_image);
         overlay.draw_rect(19,129,108,82,COLOUR_WHITE);
         tx_file_browser();
@@ -830,8 +830,6 @@ void drawOutlined(uint16_t x, uint16_t y, String msg, uint16_t fg, uint16_t bg )
 
 
 void drawOverlay(String callsignSender, String callsignReceiver, String msg ) {
-
-    overlay.clear(0);
     if (callsignReceiver=="") callsignReceiver="CQ CQ";
     drawOutlined(20,60,callsignReceiver,COLOUR_YELLOW,COLOUR_WHITE);
     drawOutlined(40,110,msg,COLOUR_ORANGE,COLOUR_WHITE);
@@ -859,6 +857,7 @@ void launch_menu()
     view_mode = rx_mode;
     return;
   } else if(menu_selection == 1) {
+    overlay.clear(0);
     tx_file_browser();
     return;
   } else if(menu_selection == 2) {
