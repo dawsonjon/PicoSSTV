@@ -563,7 +563,8 @@ void loop() {
           draw_blank_screen();
           draw = true;
         }
-      } else if (button_right.is_pressed()) {     
+      } else if (button_right.is_pressed()) {    
+       
         text_entry(rxcallsign_text, 10);
         rst_entry(rst_text);
         rst_text[3]=0;
@@ -1114,6 +1115,7 @@ void create_thumbnail(const char* filename)
   c_bmp_reader_stdio bitmap;
   uint16_t width, height;
   bitmap.open(filename, width, height);
+  
 
   const uint16_t t_width = width/3, ty_height = height/3;
   uint16_t tft_row_number = 0;
@@ -1124,16 +1126,16 @@ void create_thumbnail(const char* filename)
 
     uint16_t pixel_number = 0;
      
-      for(uint16_t x=0; x<width; x++) {
+      for(uint16_t x=0; x<width; x+=3) {
        
-        while(pixel_number <= x) {
+        //while(pixel_number <= x) {
           //display expects byteswapped data
-          uint16_t pixel=((line_rgb565[x/3] & 0xff) << 8) | ((line_rgb565[x/3] & 0xff00) >> 8);
-          scaled_image[pixel_number+((y/3)*t_width*2)] = pixel;
-          pixel_number++;
+          uint16_t pixel=((line_rgb565[x] & 0xff) << 8) | ((line_rgb565[x] & 0xff00) >> 8);
+          scaled_image[x/3+((y/3)*t_width)] = pixel;
+         // pixel_number++;
         }
       } 
-  }
+  
   bitmap.close();
 }
 
