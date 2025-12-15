@@ -209,8 +209,11 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
   {
     //write unscaled image to bmp file
     output_file.change_width(width);
-    output_file.change_height(y+1);
-    if(++bmp_row_number < height) output_file.write_row_rgb565(line_rgb565);
+  
+    if(++bmp_row_number < height){
+      output_file.change_height(y+1);
+      output_file.write_row_rgb565(line_rgb565);
+    } 
 
     //scale image to fit TFT size
     uint16_t scaled_row[display_width];
@@ -248,7 +251,7 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
     const uint16_t scope_y = 234;
     const uint16_t scope_width = 150;
 
-    const uint8_t waterfall_amp = 6;
+    const uint8_t waterfall_amp = 3;
 
     if(view_mode != rx_mode) return;
    
@@ -450,6 +453,7 @@ class c_slideshow
   void update_slideshow()
   {
     if(num_bitmaps == 0) return;
+    delay(50);
     bool redraw = false;
     static const uint16_t timeouts[] = {0, 1, 2, 5, 10, 30, 60, 60*2, 60*5};
     uint16_t timeout_milliseconds = 1000 * timeouts[settings.slideshow_timeout];
@@ -461,12 +465,16 @@ class c_slideshow
       redraw = true;
     }
     if(button_right.is_pressed()) {
+      
       get_bitmap_index(root, bitmap_index);
       filename = root.fileName();
       SDFS.remove(filename);
+      char msg[]="Deleted ";
+      draw_banner(strcat(msg,filename.c_str()));
       bitmap_index = std::min((int)bitmap_index, num_bitmaps-2);
       root = SDFS.openDir("/");
       num_bitmaps--;
+      delay(300);
       if(num_bitmaps == 0) return;
       redraw = true;
     }
@@ -566,7 +574,7 @@ void loop() {
           draw_blank_screen();
           draw = true;
         }
-      } else if (button_right.is_pressed()) {    
+      } else if (button_right.is_pressed() && (view_mode != slideshow_mode)) {    
        
         text_entry(rxcallsign_text, 10);
         rst_entry(rst_text);
@@ -580,6 +588,7 @@ void loop() {
 
     }
     if(view_mode == slideshow_mode) {
+      
       slideshow.update_slideshow();
     } else if(view_mode == rx_mode && draw) {
       
