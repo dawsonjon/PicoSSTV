@@ -42,8 +42,10 @@
 #include <string>
 #include <algorithm>
 
-#ifdef WIFI
+#define WF            //Comment for disabling wifi
 
+
+#ifdef WIFI
 #include <WiFi.h>
 #include <WiFiServer.h>
 
@@ -57,6 +59,9 @@ bool connected=false;
 
 //CONFIGURATION SECTION
 ///////////////////////////////////////////////////////////////////////////////
+
+#define CALLSIGN "IS0JSV\0";
+
 
 #define PIN_MISO 12 //not used by TFT but part of SPI bus
 #define PIN_CS   13
@@ -137,7 +142,7 @@ c_frame_buffer overlay(overlay_buffer, overlay_width, overlay_height);
 
 uint16_t scaled_image[214*160];
 
-char txcallsign_text[10]="IS0JSV\0";
+char txcallsign_text[10]= CALLSIGN
 char rxcallsign_text[10];
 char rst_text[4];
 
@@ -251,7 +256,7 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
     const uint16_t scope_y = 234;
     const uint16_t scope_width = 150;
 
-    const uint8_t waterfall_amp = 3;
+    const uint8_t waterfall_amp = 4;
 
     if(view_mode != rx_mode) return;
    
@@ -297,7 +302,7 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
       float scaled_dB = 2*20*log10(signal_strength);
       scaled_dB = std::max(std::min(scaled_dB, 149.0f), 0.0f);
       display->fillRect(scope_x, scope_y, 2, scaled_dB, COLOUR_YELLOW);
-      display->fillRect(scope_x+scaled_dB, scope_y, 2, scope_width-scaled_dB, COLOUR_BLACK);
+      display->fillRect(scope_x+scaled_dB, scope_y, 2, scope_width-scaled_dB, COLOUR_MAROON);
 
     }
     count++;
