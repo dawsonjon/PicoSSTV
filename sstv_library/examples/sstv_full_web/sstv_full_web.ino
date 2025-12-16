@@ -167,6 +167,7 @@ char rst_text[4];
 struct s_settings {
   uint8_t slideshow_timeout;
   uint8_t lost_signal_timeout;
+  uint8_t min_completion;
   uint8_t transmit_mode;
   uint8_t auto_slant_correction;
   uint8_t overlay;
@@ -177,9 +178,11 @@ struct s_settings {
 s_settings settings = {
   3, //5 seconds
   3, //30 seconds
+  2, // 50%
   1, //martin m2
   1,  //auto slant correction on
-  1,
+  1, // overlay on
+  0,  //wifi off
   {0}
 };
 
@@ -564,6 +567,7 @@ void loop() {
 
     //process rx regardless of mode
     static const uint16_t timeouts[] = {UINT16_MAX, 1, 2, 5, 10, 30, 60, 60*2, 60*5};
+    static const float completion[] = {0.9, 0.75, 0.5};
     const uint16_t timeout_seconds = timeouts[settings.lost_signal_timeout];
     
     image_complete = sstv_decoder.decode_image_non_blocking(timeout_seconds, settings.auto_slant_correction, image_in_progress);
@@ -576,7 +580,7 @@ void loop() {
     
     if(image_complete) {
       sstv_decoder.close();
-      if (sstv_decoder.getProgress()>0.5) {
+      if (sstv_decoder.getProgress()>completion[settings.min_completion]) {
         SDFS.rename("temp", rx_filename);
         create_thumbnail(rx_filename);
         get_new_filename(rx_filename, 100);
@@ -801,7 +805,7 @@ void tx_file_browser() {
       set_overlay(settings.overlay_text);
       display_image(filename.c_str(), settings.overlay);
       //draw_banner(filename.c_str(), settings.overlay?30:0);
-      draw_banner(tx_modes[settings.transmit_mode], settings.overlay?30:0);
+      draw_banner(tx_modes[settings.transmit_mode]);
       draw_button_bar("Transmit", "Cancel", "Last", "Next");
       redraw = false;
     }
@@ -905,13 +909,14 @@ void launch_menu()
     const char * const menu_selections[] = {
       "Auto Slant Correction",
       "Lost Signal Timeout",
+      "Min save %",
       "Transmit Mode",
       "Slideshow Timeout",
       "Overlay",
       "Overlay Text",
       "Wifi"
     };
-    if(menu("Settings", menu_selection, menu_selections, 7)) {
+    if(menu("Settings", menu_selection, menu_selections, 8)) {
       switch (menu_selection) 
       {
         case 0: { //Auto slant correction
@@ -924,24 +929,29 @@ void launch_menu()
         }
           break;
         case 2: { //transmit mode
+           const char * const menu_selections[] = {"90%", "75%","50%"};
+          menu("Min % for save image", settings.min_completion, menu_selections, 3);
+        }
+          break;
+        case 3: { //transmit mode
           get_transmit_mode(settings.transmit_mode);
         }
           break;
-        case 3: { //slideshow_timeout
+        case 4: { //slideshow_timeout
           get_timeout_seconds("Slideshow Timeout", settings.slideshow_timeout);
         }
           break;
-        case 4: { //overlay
+        case 5: { //overlay
           const char * const menu_selections[] = {"Off", "On"};
           menu("Overlay text", settings.overlay, menu_selections, 2);
         }
           break;
-        case 5: { //overlay_text
+        case 6: { //overlay_text
           text_entry(settings.overlay_text, 24);      
         }
           break;
         #ifdef WIFI
-        case 6: { //wifi
+        case 7: { //wifi
           const char * const menu_selections[] = {"Off", "On"};
           menu("Wifi", settings.wifi, menu_selections, 2);    
           if (settings.wifi) {
@@ -1163,7 +1173,7 @@ void rst_entry(char string[])
   }
 }
 
-#define version 126
+#define version 100
 
 void save() {
   EEPROM.put(sizeof(settings), settings);
