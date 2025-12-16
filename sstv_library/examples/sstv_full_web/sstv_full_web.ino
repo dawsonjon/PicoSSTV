@@ -12,11 +12,28 @@
 // SSTV Decoder using pi-pico.
 //
 // Accepts audio on ADC input, and displays on an ILI943x display.
-// Works with the Martin M1/2 and Scottie S1/2 and PD50/90.
+// 
 //
 // License: MIT
 //
 // BRABUDU
+//
+// 
+//
+// WIFI: 
+//
+// Configure ssid and password
+//
+// Enable wifi in settings
+// Look at the ip address in the menu title
+// Connect from pc while the Pico sstv is in menu mode
+//
+// Transmission:
+//
+// Put your pictures (24 bit bmp) in the tx folder
+// Configure your callsign in the configuration section above
+// Use "reply" for replying to a cq call, then insert the receiver callsign and the rst. Select the picture and send
+// Use "transmit" in the menu section for making a cq call
 
 #include "hardware/spi.h"
 #include "ili934x.h"
@@ -42,17 +59,15 @@
 #include <string>
 #include <algorithm>
 
-#define WF            //Comment for disabling wifi
+#define WIFI            //Comment for disabling wifi
 
 
 #ifdef WIFI
 #include <WiFi.h>
 #include <WiFiServer.h>
 
-const char* ssid     = "Undixedda noa";
-const char* password = "Miagolina25!";
-
 WiFiServer server(80);
+
 bool connected=false;
 
 #endif
@@ -61,6 +76,9 @@ bool connected=false;
 ///////////////////////////////////////////////////////////////////////////////
 
 #define CALLSIGN "IS0JSV\0";
+
+const char* ssid     = "Undixedda noa";
+const char* password = "Miagolina25!";
 
 
 #define PIN_MISO 12 //not used by TFT but part of SPI bus
@@ -152,6 +170,7 @@ struct s_settings {
   uint8_t transmit_mode;
   uint8_t auto_slant_correction;
   uint8_t overlay;
+  uint8_t wifi;
   char overlay_text[25];
 };
 
@@ -342,12 +361,12 @@ void set_overlay(const char message[])
 {
   //Create a background gradient
   for(uint16_t x=0; x<overlay_width; x++) {
-    for(uint16_t y=0; y<10; y++) {
+    for(uint16_t y=0; y<14; y++) {
      overlay.set_pixel(x, y, overlay.colour565(0, x*255/overlay_width, 255));
     }
   }
   uint16_t text_width = strlen(message) * 12;
-  overlay.draw_string((overlay_width-text_width)/2, 2, font_8x5, message, COLOUR_ORANGE);
+  overlay.draw_string((overlay_width-text_width)/2, 4, font_8x5, message, COLOUR_ORANGE);
 }
 
 //Derive a class from sstv encoder and override hardware specific functions
@@ -517,8 +536,10 @@ void setup() {
   initialise_sdcard();
   VFS.root(SDFS);
 
+  load();
+
 #ifdef WIFI
-  WiFi.begin(ssid, password);
+  if (settings.wifi) connectToWiFi();
  #endif
 }
 
@@ -540,9 +561,7 @@ void loop() {
   //set_overlay(settings.overlay_text);
 
   while(1) {
-#ifdef WIFI
-    poll_wifi();
-#endif
+
     //process rx regardless of mode
     static const uint16_t timeouts[] = {UINT16_MAX, 1, 2, 5, 10, 30, 60, 60*2, 60*5};
     const uint16_t timeout_seconds = timeouts[settings.lost_signal_timeout];
@@ -890,23 +909,49 @@ void launch_menu()
       "Slideshow Timeout",
       "Overlay",
       "Overlay Text",
+      "Wifi"
     };
-    if(menu("Settings", menu_selection, menu_selections, 6)) {
-      if(menu_selection == 0) {//Auto slant correction
-        const char * const menu_selections[] = {"Off", "On"};
-        menu("Auto Slant Correction", settings.auto_slant_correction, menu_selections, 2);
-      } else if(menu_selection == 1) { //lost signal timeout
-        get_timeout_seconds("Lost Signal Timeout", settings.lost_signal_timeout);
-      } else if(menu_selection == 2) { //transmit mode
-        get_transmit_mode(settings.transmit_mode);
-      } else if(menu_selection == 3) { //slideshow_timeout
-        get_timeout_seconds("Slideshow Timeout", settings.slideshow_timeout);
-      } else if(menu_selection == 4) {//overlay
-        const char * const menu_selections[] = {"Off", "On"};
-        menu("Overlay text", settings.overlay, menu_selections, 2);
-      } else if(menu_selection == 5) {//overlay_text
-        text_entry(settings.overlay_text, 24);
-       //set_overlay(settings.overlay_text);
+    if(menu("Settings", menu_selection, menu_selections, 7)) {
+      switch (menu_selection) 
+      {
+        case 0: { //Auto slant correction
+          const char * const menu_selections[] = {"Off", "On"};
+          menu("Auto Slant Correction", settings.auto_slant_correction, menu_selections, 2);
+        }
+          break;
+        case 1: { //lost signal timeout
+          get_timeout_seconds("Lost Signal Timeout", settings.lost_signal_timeout);
+        }
+          break;
+        case 2: { //transmit mode
+          get_transmit_mode(settings.transmit_mode);
+        }
+          break;
+        case 3: { //slideshow_timeout
+          get_timeout_seconds("Slideshow Timeout", settings.slideshow_timeout);
+        }
+          break;
+        case 4: { //overlay
+          const char * const menu_selections[] = {"Off", "On"};
+          menu("Overlay text", settings.overlay, menu_selections, 2);
+        }
+          break;
+        case 5: { //overlay_text
+          text_entry(settings.overlay_text, 24);      
+        }
+          break;
+        #ifdef WIFI
+        case 6: { //wifi
+          const char * const menu_selections[] = {"Off", "On"};
+          menu("Wifi", settings.wifi, menu_selections, 2);    
+          if (settings.wifi) {
+            reconnectWiFiAndClient();
+          } else {
+            disconnectWiFi();
+          }
+        }
+          break;
+        #endif
       }
     }
     save();
@@ -958,6 +1003,11 @@ bool menu(const char* title, uint8_t &selection, const char * const menu_items[]
   draw_button_bar("OK", "Cancel", "Up", "Down");
   
   while(1) {
+    
+    #ifdef WIFI
+    if (settings.wifi) poll_wifi();
+    #endif
+
     if(button_down.is_pressed() && menu_item > 0){menu_item--; draw = true;} 
     if(button_up.is_pressed() && menu_item < num_menu_items-1){menu_item++; draw = true;}
     if(button_left.is_pressed()){selection = menu_item; return true;} //ok
@@ -1113,18 +1163,20 @@ void rst_entry(char string[])
   }
 }
 
+#define version 126
+
 void save() {
-  EEPROM.put(4, settings);
+  EEPROM.put(sizeof(settings), settings);
   uint32_t scores_stored = 0;
   EEPROM.get(0, scores_stored);
-  if(scores_stored != 125) EEPROM.put(0, 125);
+  if(scores_stored != version) EEPROM.put(0, version);
   EEPROM.commit();
 }
 
 void load() {
   uint32_t scores_stored = 0;
   EEPROM.get(0, scores_stored);
-  if(scores_stored == 125) EEPROM.get(4, settings);
+  if(scores_stored == version) EEPROM.get(sizeof(settings), settings);
 }
 
 void create_thumbnail(const char* filename)
@@ -1159,6 +1211,7 @@ void create_thumbnail(const char* filename)
 /////////////////////////////////////////////////////////
 
 #ifdef WIFI
+
 bool isImage(String name) {
   name.toLowerCase();
   return name.endsWith(".bmp");
@@ -1288,4 +1341,29 @@ void poll_wifi() {
   delay(100);
   client.stop();
 }
+
+void connectToWiFi() {
+  Serial.print("Connecting to WiFi");
+  WiFi.begin(ssid, password);
+}
+
+// Function to disconnect WiFi and turn off WiFi chip power
+void disconnectWiFi() {
+  Serial.println("Disconnecting WiFi...");  
+  WiFi.disconnect();               // Disconnect WiFi
+  delay(100);                      // Wait a bit
+  WiFi.mode(WIFI_OFF);             // Turn off WiFi mode
+  delay(100);                      // Wait a bit
+  digitalWrite(23, LOW);           // Turn off WiFi chip power
+  Serial.println("WiFi disconnected and power to WiFi chip is off.");
+}
+
+// Function to reconnect WiFi and WiFiClient
+void reconnectWiFiAndClient() {
+  digitalWrite(23, HIGH);          // Turn on WiFi chip power
+  delay(100);                      // Wait for stabilization
+  Serial.println("Reconnecting WiFi...");
+  WiFi.mode(WIFI_STA);             // Set WiFi mode to STA
+  connectToWiFi();  
+}  // Reconnect to WiFi
 #endif
