@@ -16,6 +16,47 @@
 
 #include "half_band_filter2.h"
 
+const char * const tx_modes[] = {
+    "Martin M1",
+    "Martin M2",
+    "Scottie S1",
+    "Scottie S2",
+    "Scottie DX",
+    "PD 50",
+    "PD 90",
+    "PD 120",
+    "PD 180",
+	"SC2 60",
+	"SC2 120",
+	"SC2 180",
+    "Robot 24",
+    "Robot 36",
+    "Robot 72",
+    "Robot B&W 8",
+    "Robot B&W 12"
+    
+  };
+  
+  const char * const tx_modes_abbr[] = {
+    "M1",
+    "M2",
+    "S1",
+    "S2",
+    "S DX",
+    "PD50",
+    "PD90",
+    "PD120",
+    "PD180",
+	"SC60",
+	"SC120",
+	"SC180",
+    "R24",
+    "R36",
+    "R72",
+    "BW 8",
+    "BW 12"
+  };
+
 enum e_mode 
 {
   martin_m1, 
@@ -115,7 +156,7 @@ class c_sstv_decoder
   virtual uint16_t get_frequency_sample();
 
   //Override this function to output a line of image
-  virtual void image_write_line(uint16_t line_rgb565[], uint16_t y, uint16_t width, uint16_t height, const char* mode_string) = 0;
+  virtual void image_write_line(uint16_t line_rgb565[], uint16_t y, uint16_t width, uint16_t height, e_mode decode_mode) = 0;
   
   virtual void scope(uint16_t mag, int16_t freq)  {};
 
