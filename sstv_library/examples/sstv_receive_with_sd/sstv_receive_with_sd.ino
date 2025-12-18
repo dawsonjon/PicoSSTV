@@ -131,7 +131,7 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
     //if we reach the end of a block request a new one
     if(sample_number == ADC_BLOCK)
     {
-      //fetch a new block of ADC_BLOCK samples
+      //fetch a new block of 1024 samples
       samples = adc_audio.input_samples();
       sample_number = 0;
     }
@@ -141,7 +141,7 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
   }
 
   //override the image_write_line function to output images to a TFT display
-  void image_write_line(uint16_t line_rgb565[], uint16_t y, uint16_t width, uint16_t height, const char* mode_string)
+  void image_write_line(uint16_t line_rgb565[], uint16_t y, uint16_t width, uint16_t height, e_mode mode)
   {
     //write unscaled image to bmp file
     output_file.change_width(width);
@@ -177,68 +177,63 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
     //update progress
     display->fillRect(0, display_height, 20, display_width, COLOUR_BLACK);
     char buffer[21];
-    snprintf(buffer, 21, "%10s: %ux%u", mode_string, width, y+1);
+    snprintf(buffer, 21, "%10s: %ux%u", tx_modes[mode], width, y+1);
     display->drawString(0, display_height+10, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK);
     Serial.println(buffer);
 
   }
 
- void scope(uint16_t mag, int16_t freq) {
-  static const uint16_t palette[]={0x0000,0x0011,0x0023,0x0024,0x0043,0x0044,0x0044,0x0044,0x0044,0x0044,0x0044,0x0045,0x0045,0x0065,0x0065,0x0065,0x0065,0x0066,0x0066,0x0066,0x0066,0x0086,0x0087,0x0087,0x0087,0x0087,0x0088,0x00a8,0x00a8,0x00a8,0x00a8,0x00a9,0x00c9,0x00c9,0x00ca,0x00ca,0x00ca,0x00ea,0x00eb,0x00eb,0x00eb,0x010b,0x010c,0x010c,0x012c,0x012d,0x012d,0x012d,0x014e,0x014e,0x014e,0x016f,0x016f,0x016f,0x0190,0x0190,0x0190,0x01b1,0x01b1,0x01d1,0x01d2,0x01d2,0x01f2,0x01f3,0x0213,0x0213,0x0214,0x0234,0x0234,0x0255,0x0255,0x0276,0x0276,0x0296,0x0297,0x02b7,0x02b7,0x02d8,0x02d8,0x02f8,0x02f9,0x0319,0x0319,0x033a,0x035a,0x035a,0x037b,0x037b,0x039b,0x039c,0x03bc,0x03dc,0x03dc,0x03fd,0x03fd,0x041d,0x043e,0x043e,0x045e,0x045e,0x047f,0x049f,0x049f,0x04bf,0x04df,0x04df,0x04ff,0x051f,0x051f,0x053f,0x053f,0x055f,0x057f,0x057f,0x059f,0x05bf,0x05bf,0x0ddf,0x0ddf,0x0dff,0x0e1f,0x0e1f,0x0e3f,0x0e3f,0x0e5f,0x0e7f,0x0e7f,0x0e9f,0x0e9f,0x0ebf,0x0ebf,0x16df,0x16df,0x16ff,0x171f,0x171f,0x173f,0x173f,0x173f,0x175f,0x1f5f,0x1f7f,0x1f7f,0x1f9f,0x1f9f,0x1f9f,0x27bf,0x27bf,0x27df,0x27df,0x27df,0x27ff,0x2fff,0x2fff,0x2fff,0x2ffe,0x37fe,0x37fe,0x37fe,0x37fd,0x3ffd,0x3ffd,0x3ffc,0x3ffc,0x47fc,0x47fc,0x47fb,0x4ffb,0x4ffb,0x4ffa,0x57fa,0x57fa,0x57f9,0x5ff9,0x5ff9,0x5ff8,0x67f8,0x67f8,0x6ff7,0x6ff7,0x6ff7,0x77f6,0x77f6,0x7ff6,0x7ff5,0x87f5,0x87f4,0x8ff4,0x8ff4,0x8ff3,0x97d3,0x97d3,0x9fd2,0x9fb2,0xa7b2,0xa791,0xaf91,0xaf91,0xb770,0xb770,0xbf50,0xbf4f,0xc72f,0xc72f,0xcf2e,0xcf0e,0xd70e,0xdeed,0xdecd,0xe6cd,0xe6ac,0xeeac,0xee8c,0xf68b,0xf66b,0xfe6b,0xfe4b,0xfe2a,0xfe2a,0xfe0a,0xfe0a,0xfde9,0xfdc9,0xfdc9,0xfda8,0xfda8,0xfd88,0xfd68,0xfd68,0xfd47,0xfd27,0xfd27,0xfd07,0xfd06,0xfce6,0xfcc6,0xfcc6,0xfca6,0xfc85,0xfc85,0xfc65,0xfc45,0xfc45,0xfc25,0xfc24,0xfc04,0xfbe4,0xfbe4,0xfbc4,0xfbc4,0xfba3,0xfb83,0xfb83,0xfb63,0xfb63,0xfb43};
+  void scope(uint16_t mag, int16_t freq) {
 
     const uint16_t scope_x = 168;
     const uint16_t scope_y = 234;
     const uint16_t scope_width = 150;
-
-    const uint8_t waterfall_amp = 4;
    
     static uint8_t row=0;
     static uint16_t count=0;
-    static uint32_t spectrum[scope_width];
+    static uint32_t spectrum[150];
     static uint32_t signal_strength = 0;
-    static uint8_t mean_f=0;
 
-    const uint8_t f=(freq-1000)*scope_width/1500;
+    const int8_t f=(freq-1000)*150/1500;
     const uint8_t Hz_1200 = (1200-1000)*scope_width/1500;
     const uint8_t Hz_1500 = (1500-1000)*scope_width/1500;
     const uint8_t Hz_2300 = (2300-1000)*scope_width/1500;
    
-    mean_f=(mean_f* 7 + f)/8;
-
-    if (mean_f>0 && mean_f<scope_width) {
-      spectrum[mean_f] = (spectrum[mean_f] * 15 + mag)/16;
+    if (freq < 2450 && f>0 && f<scope_width) {
+      spectrum[f] = (spectrum[f] * 15 + mag)/16;
     }
     signal_strength = (signal_strength * 15 + mag)/16;
     if (count>200 ) {
-      //display->drawRect(scope_x-1, scope_y-12, 14, scope_width+3, COLOUR_DARKGREY);
+      display->drawRect(scope_x-1, scope_y-12, 14, scope_width+3, COLOUR_WHITE);
       uint16_t waterfall[scope_width];
-      for (int i=0;i<scope_width;i++) {
-        float scaled_dB = waterfall_amp*20*log10(spectrum[i]);
-        scaled_dB = std::max(std::min(scaled_dB, 255.0f), 0.0f);          
-        waterfall[i]=__builtin_bswap16(palette[(int)scaled_dB]);
-   
+      for (int i=0;i<150;i++) {
+        float scaled_dB = 2*20*log10(spectrum[i]);
+        scaled_dB = std::max(std::min(scaled_dB, 255.0f), 0.0f);
+        waterfall[i]=display->colour565(0, scaled_dB, scaled_dB);
       }
       waterfall[Hz_1200]=COLOUR_RED;
       waterfall[Hz_1500]=COLOUR_RED;
       waterfall[Hz_2300]=COLOUR_RED;
-      display->writeHLine(scope_x,scope_y-12+row++,scope_width,waterfall);
+      display->writeHLine(scope_x,scope_y-10+row++,150,waterfall);
       
       for (int i=0;i<scope_width;i++) {
-        spectrum[i]=spectrum[i]>>1;
+        spectrum[i]=0;
       }
 
-      if (row>11) row=0;   
+      if (row>7) row=0;   
       count=0;
 
       // Draw signal bar
       float scaled_dB = 2*20*log10(signal_strength);
       scaled_dB = std::max(std::min(scaled_dB, 149.0f), 0.0f);
-      display->fillRect(scope_x, scope_y, 2, scaled_dB, COLOUR_YELLOW);
-      display->fillRect(scope_x+scaled_dB, scope_y, 2, scope_width-scaled_dB, COLOUR_MAROON);
+      display->fillRect(scope_x, scope_y-2, 2, scaled_dB, COLOUR_GREEN);
+      display->fillRect(scope_x+scaled_dB, scope_y-2, 2, 150-scaled_dB, COLOUR_BLACK);
 
     }
     count++;
   }
+
+  
 
   c_bmp_writer_stdio output_file;
   uint16_t bmp_row_number = 0;
@@ -289,7 +284,6 @@ void loop() {
 
   while(1)
   {
-    display->clear();
     sstv_decoder.decode_image(LOST_SIGNAL_TIMEOUT_SECONDS, ENABLE_SLANT_CORRECTION);
     sstv_decoder.close();
     SDFS.rename("temp", filename);
@@ -321,8 +315,6 @@ void configure_display()
   display->powerOn(true);
   display->clear();
   draw_splash_screen();
-  delay(3000);
-  
 }
 
 void initialise_sdcard()
@@ -355,7 +347,6 @@ void initialise_sdcard()
     return;
   }
   Serial.println("initialization done.");
-  display->drawString(120, 220, font_8x5,"SD", COLOUR_WHITE, COLOUR_BLACK);
 
 }
 

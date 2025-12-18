@@ -15,8 +15,6 @@
 // Works with the Martin M1/2 and Scottie S1/2 and PD50/90.
 //
 // License: MIT
-//
-// BRABUDU
 
 #include "hardware/spi.h"
 #include "ili934x.h"
@@ -161,7 +159,7 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
   }
 
   //override the image_write_line function to output images to a TFT display
-  void image_write_line(uint16_t line_rgb565[], uint16_t y, uint16_t width, uint16_t height, const char* mode_string)
+  void image_write_line(uint16_t line_rgb565[], uint16_t y, uint16_t width, uint16_t height, e_mode mode)
   {
     //write unscaled image to bmp file
     output_file.change_width(width);
@@ -191,7 +189,7 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
 
     //update progress
     char buffer[21];
-    snprintf(buffer, 21, "%10s: %ux%u", mode_string, width, y+1);
+    snprintf(buffer, 21, "%10s: %ux%u",  tx_modes[mode], width, y+1);
     draw_status_bar("RX Incoming ...");
     draw_banner(buffer);
     Serial.println(buffer);
@@ -254,7 +252,7 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
     }
     count++;
   }
-
+  
   c_bmp_writer_stdio output_file;
   uint16_t bmp_row_number = 0;
 
@@ -466,14 +464,14 @@ void loop() {
   bool image_in_progress = false;
   bool image_complete = false;
   view_mode = rx_mode;
-  draw_blank_screen();
+  display->clear(COLOUR_NAVY);
+  display->drawString((DISPLAY_WIDTH-(12*strlen("Pico SSTV")))/2, 100, font_16x12, "Pico SSTV", COLOUR_GREY, COLOUR_NAVY);
   strncpy(settings.overlay_text, "Pi Pico SSTV", 24);
   load();
   set_overlay(settings.overlay_text);
 
   while(1) {
-
-        
+    
     //process rx regardless of mode
     static const uint16_t timeouts[] = {UINT16_MAX, 1, 2, 5, 10, 30, 60, 60*2, 60*5};
     const uint16_t timeout_seconds = timeouts[settings.lost_signal_timeout];
@@ -492,7 +490,8 @@ void loop() {
         launch_menu();
         if(view_mode == slideshow_mode) slideshow.launch_slideshow();
         if(view_mode == rx_mode) {
-          draw_blank_screen();
+          display->clear(COLOUR_NAVY); 
+          display->drawString((DISPLAY_WIDTH-(12*strlen("Pico SSTV")))/2, 100, font_16x12, "Pico SSTV", COLOUR_GREY, COLOUR_NAVY);
           draw = true;
         }
       }
@@ -513,12 +512,6 @@ void draw_splash_screen()
 {
   display->writeImage(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, splash);
   sleep_ms(1000);
-}
-
-void draw_blank_screen()
-{
-  display->clear(COLOUR_NAVY); 
-  display->drawString((DISPLAY_WIDTH-(12*strlen("Pico SSTV")))/2, 100, font_16x12, "Pico SSTV", COLOUR_GREY, COLOUR_NAVY);
 }
 
 void configure_display()

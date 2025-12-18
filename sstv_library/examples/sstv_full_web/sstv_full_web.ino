@@ -59,8 +59,10 @@
 #include <string>
 #include <algorithm>
 
-#define WIFI            //Comment for disabling wifi
 
+#if defined(PICO_RP2350)
+#define WIFI            //Comment for disabling wifi
+#endif
 
 #ifdef WIFI
 #include <WiFi.h>
@@ -807,6 +809,7 @@ void tx_file_browser() {
       return;
     }
     if(button_right.is_pressed()) {
+      draw_blank_screen();
       return;
     }
   }
@@ -1245,7 +1248,7 @@ void send404(WiFiClient &client) {
   client.println();
 }
 
-void sendGallery(WiFiClient &client, int page) {
+void sendGallery(WiFiClient &client, int page, const char* folder) {
   client.println("HTTP/1.0 200 OK");
   client.println("Connection: close");
   client.println("Content-Type: text/html");
@@ -1255,9 +1258,11 @@ void sendGallery(WiFiClient &client, int page) {
   client.println("<style>body{background: antiquewhite;}.foto{float:left;border:1px lightgray solid;padding: 5px;margin:10px;border-radius: 10px;background:white;height:322px;}img{margin:20px;width:320px;border:2px black solid}</style></head>");
   client.println("<body><h1>Galleria immagini su SD</h1><hr><h2>Pagina ");
   client.print(page);
+  client.print("</h2><h2> Folder ");
+  client.print(folder);
   client.println("</h2><div style='display: inline flow-root list-item;'>");
 
-  Dir root = SDFS.openDir("/");
+  Dir root = SDFS.openDir(folder);
   int num=count_bitmaps(root);
   root.rewind();
   int n=0;
@@ -1273,9 +1278,13 @@ void sendGallery(WiFiClient &client, int page) {
         client.print("><button style='width:100%'>Delete ");
         client.print(name);
         client.print("</button></a></br>");
-        client.print("<a href='img/");
+        client.print("<a href='img");
+        client.print(folder);
+        client.print("/");
         client.print(name);
-        client.print("'><img src='img/");
+        client.print("'><img src='img");
+        client.print(folder);
+        client.print("/");
         client.print(name);
         client.print("' /></a>");
        
@@ -1321,15 +1330,18 @@ void poll_wifi() {
     Serial.print("deleting ");
     Serial.println(filename);
     SDFS.remove(filename);
-    sendGallery(client,page);
+    sendGallery(client,page,"/");
   } else if (request.startsWith("?page=")) {
     page=request.substring(6).toInt();
-    sendGallery(client,page);
+    sendGallery(client,page,"/");
   } else if (request.startsWith("favicon.ico")) {
     send404(client);
-  } else
+  } else if (request.startsWith("?tx=")) {
+    page=request.substring(4).toInt();
+     sendGallery(client,page,"/tx");
+  } else 
    {
-    sendGallery(client,page);
+    sendGallery(client,page,"/");
   }
 
   delay(1);
@@ -1344,6 +1356,7 @@ void poll_wifi() {
 
 void connectToWiFi() {
   Serial.print("Connecting to WiFi");
+  WiFi.setTimeout(5000);
   WiFi.begin(ssid, password);
 }
 
