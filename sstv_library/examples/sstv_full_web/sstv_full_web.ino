@@ -873,9 +873,9 @@ void drawOutlined(uint16_t x, uint16_t y, String msg, uint16_t fg, uint16_t bg )
 
 void drawOverlay(String callsignSender, String callsignReceiver, String msg ) {
     if (callsignReceiver=="") callsignReceiver="CQ CQ";
-    drawOutlined(20,60,callsignReceiver,COLOUR_YELLOW,COLOUR_WHITE);
+    drawOutlined(20,60,callsignReceiver,COLOUR_ORANGE,COLOUR_WHITE);
     drawOutlined(40,110,msg,COLOUR_ORANGE,COLOUR_WHITE);
-    drawOutlined(140,210,callsignSender,COLOUR_RED,COLOUR_WHITE);
+    drawOutlined(140,220,callsignSender,COLOUR_RED,COLOUR_WHITE);
 }
 
 void launch_menu()
@@ -900,6 +900,8 @@ void launch_menu()
     return;
   } else if(menu_selection == 1) {
     overlay.clear(0);
+    txcallsign_text[0]=0;
+    rst_text[0]=0;
     tx_file_browser();
     return;
   } else if(menu_selection == 2) {
@@ -929,7 +931,7 @@ void launch_menu()
           get_timeout_seconds("Lost Signal Timeout", settings.lost_signal_timeout);
         }
           break;
-        case 2: { //transmit mode
+        case 2: { 
            const char * const menu_selections[] = {"90%", "75%","50%"};
           menu("Min % for save image", settings.min_completion, menu_selections, 3);
         }
