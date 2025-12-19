@@ -900,7 +900,7 @@ void launch_menu()
     return;
   } else if(menu_selection == 1) {
     overlay.clear(0);
-    txcallsign_text[0]=0;
+    rxcallsign_text[0]=0;
     rst_text[0]=0;
     tx_file_browser();
     return;
