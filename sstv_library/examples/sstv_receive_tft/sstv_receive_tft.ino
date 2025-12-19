@@ -104,7 +104,7 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
   }
 
   //override the image_write_line function to output images to a TFT display
-  void image_write_line(uint16_t line_rgb565[], uint16_t y, uint16_t width, uint16_t height, const char* mode_string)
+  void image_write_line(uint16_t line_rgb565[], uint16_t y, uint16_t width, uint16_t height, e_mode mode)
   {
 
     //scale image to fit TFT size

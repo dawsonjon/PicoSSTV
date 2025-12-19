@@ -135,12 +135,12 @@ void draw_button_bar(const char* btn1, const char* btn2, const char* btn3, const
 void configure_display();
 void initialise_sdcard();
 void get_new_filename(char *buffer, uint16_t buffer_size);
-void display_image(const char* filename, bool show_overlay=false);
+int16_t display_image(const char* filename, bool show_overlay=false);
 void get_timeout_seconds(const char* title, uint8_t & menu_selection);
 void launch_menu();
 uint16_t count_bitmaps(Dir &root);
 void get_bitmap_index(Dir &root, uint16_t index);
-void create_thumbnail(const char* filename);
+void create_thumbnail(const char* filename, e_mode mode);
 
 ILI934X *display;
 #define DISPLAY_WIDTH 320
@@ -223,6 +223,9 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
   {
     //write unscaled image to bmp file
     output_file.change_width(width);
+
+    //update decode mode
+    output_file.change_mode(decode_mode);
   
     if(++bmp_row_number < height){
       output_file.change_height(y+1);
@@ -512,9 +515,10 @@ class c_slideshow
       get_bitmap_index(root, bitmap_index);
       filename = root.fileName();
       Serial.println(filename);
-      display_image(filename.c_str());
+      int16_t mode=display_image(filename.c_str());
       uint16_t width = strlen(filename.c_str())*6+10;
       draw_banner(filename.c_str());
+      if (mode>=0) draw_banner(tx_modes[mode],200);
       draw_button_bar("Menu", "Delete", "Last", "Next");
       last_update_time = millis();
     }
@@ -575,7 +579,7 @@ void loop() {
       sstv_decoder.close();
       if (sstv_decoder.getProgress()>completion[settings.min_completion]) {
         SDFS.rename("temp", rx_filename);
-        create_thumbnail(rx_filename);
+        create_thumbnail(rx_filename, sstv_decoder.getLastMode());
         get_new_filename(rx_filename, 100);
       }
       sstv_decoder.open("temp");
@@ -816,11 +820,12 @@ void tx_file_browser() {
 
 }
 
-void display_image(const char* filename, bool show_overlay)
+int16_t display_image(const char* filename, bool show_overlay)
 {
   c_bmp_reader_stdio bitmap;
   uint16_t width, height;
-  bitmap.open(filename, width, height);
+  int16_t mode;
+  bitmap.open(filename, width, height, mode);
 
   const uint16_t display_width = DISPLAY_WIDTH, display_height = DISPLAY_HEIGHT-STATUS_BAR_HEIGHT;
   uint16_t tft_row_number = 0;
@@ -854,6 +859,7 @@ void display_image(const char* filename, bool show_overlay)
   }
 
   bitmap.close();
+  return mode;
 }
 
 void drawOutlined(uint16_t x, uint16_t y, String msg, uint16_t fg, uint16_t bg ) {
@@ -1182,14 +1188,35 @@ void load() {
   if(scores_stored == version) EEPROM.get(sizeof(settings), settings);
 }
 
-void create_thumbnail(const char* filename)
+void create_thumbnail(const char* filename, e_mode mode)
 {
   c_bmp_reader_stdio bitmap;
   uint16_t width, height;
+ 
   bitmap.open(filename, width, height);
-  
+  float step_x;
+  float step_y;
 
-  const uint16_t t_width = width/3, ty_height = height/3;
+  switch (mode) {
+    case pd_120:
+    case pd_180:
+      step_x=6;
+      step_y=6;
+    break;
+    case bw8:
+    case robot24:
+      step_x=1.5;
+      step_y=1.5;
+    break;
+    default:
+      step_x=3;
+      step_y=3;
+    break;
+  }
+ 
+  //todo: mode depedent scale
+
+  const uint16_t t_width = width/step_x, ty_height = height/step_y;
   uint16_t tft_row_number = 0;
 
   for(uint16_t y=0; y<height; y++) {
@@ -1197,13 +1224,15 @@ void create_thumbnail(const char* filename)
     bitmap.read_row_rgb565(line_rgb565);
 
     uint16_t pixel_number = 0;
-     
-      for(uint16_t x=0; x<width; x+=3) {
+
+      for(uint16_t x=0; x<width; x++) {
        
         //while(pixel_number <= x) {
           //display expects byteswapped data
           uint16_t pixel=((line_rgb565[x] & 0xff) << 8) | ((line_rgb565[x] & 0xff00) >> 8);
-          scaled_image[x/3+((y/3)*t_width)] = pixel;
+          uint16_t scaled_x=x/step_x;
+          uint16_t scaled_y=y/step_y;
+          scaled_image[scaled_x+scaled_y*t_width] = pixel;
          // pixel_number++;
         }
       } 
