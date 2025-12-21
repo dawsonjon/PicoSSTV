@@ -12,14 +12,27 @@
 // SSTV Decoder using pi-pico.
 //
 // Accepts audio on ADC input, and displays on an ILI943x display.
-// Works with the Martin M1/2 and Scottie S1/2 and PD50/90.
+// 
 //
 // License: MIT
+//
+// BRABUDU
+//
+// 
+//
+// Transmission:
+//
+// Put your pictures (24 bit bmp) in the tx folder
+// Configure your callsign in the configuration section above
+// Use "reply" for replying to a cq call, then insert the receiver callsign and the rst. Select the picture and send
+// Use "transmit" in the menu section for making a cq call
 
 #include "hardware/spi.h"
 #include "ili934x.h"
+#include "gfxfont.h"
 #include "font_8x5.h"
 #include "font_16x12.h"
+#include "FreeSansBold24pt7b.h"
 #include "sstv_decoder.h"
 #include "bmp_classes.h"
 #include "ADCAudio.h"
@@ -34,7 +47,6 @@
 #include <SDFS.h>
 #include <VFS.h>
 #include <EEPROM.h>
-
 #include <vector>
 #include <string>
 #include <algorithm>
@@ -42,6 +54,8 @@
 
 //CONFIGURATION SECTION
 ///////////////////////////////////////////////////////////////////////////////
+
+#define CALLSIGN "IS0JSV\0";
 
 #define PIN_MISO 12 //not used by TFT but part of SPI bus
 #define PIN_CS   13
@@ -82,6 +96,10 @@
 #define INVERT_DISPLAY false
 //#define INVERT_DISPLAY true
 
+//Chroma key color for overlay
+
+#define CHROMA 0
+
 //END OF CONFIGURATION SECTION
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -91,18 +109,19 @@ void draw_button_bar(const char* btn1, const char* btn2, const char* btn3, const
 void configure_display();
 void initialise_sdcard();
 void get_new_filename(char *buffer, uint16_t buffer_size);
-void display_image(const char* filename, bool show_overlay=false);
+int16_t display_image(const char* filename, bool show_overlay=false);
 void get_timeout_seconds(const char* title, uint8_t & menu_selection);
 void launch_menu();
 uint16_t count_bitmaps(Dir &root);
 void get_bitmap_index(Dir &root, uint16_t index);
+void create_thumbnail(const char* filename, e_mode mode);
 
 ILI934X *display;
 #define DISPLAY_WIDTH 320
 #define DISPLAY_HEIGHT 240
 #define STATUS_BAR_HEIGHT 20
 
-button button_up(17); 
+button button_up(26); //17
 button button_down(20); 
 button button_right(21); 
 button button_left(22);
@@ -111,27 +130,39 @@ enum e_view_mode {rx_mode, slideshow_mode};
 e_view_mode view_mode;
 
 static const uint16_t overlay_width = 320;
-static const uint16_t overlay_height = 25;
+static const uint16_t overlay_height = 256;
 uint16_t overlay_buffer[overlay_width*overlay_height];
 c_frame_buffer overlay(overlay_buffer, overlay_width, overlay_height);
+
+uint16_t scaled_image[214*160];
+
+char txcallsign_text[10]= CALLSIGN
+char rxcallsign_text[10];
+char rst_text[4];
 
 struct s_settings {
   uint8_t slideshow_timeout;
   uint8_t lost_signal_timeout;
+  uint8_t min_completion;
   uint8_t transmit_mode;
   uint8_t auto_slant_correction;
   uint8_t overlay;
+  uint8_t wifi;
   char overlay_text[25];
 };
 
 s_settings settings = {
   3, //5 seconds
-  5, //30 seconds
+  3, //30 seconds
+  2, // 50%
   1, //martin m2
   1,  //auto slant correction on
-  1,
+  1, // overlay on
+  0,  //wifi off
   {0}
 };
+
+
 
 //c_sstv_decoder provides a reusable SSTV decoder
 //We need to override some hardware specific functions to make it work with
@@ -140,6 +171,9 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
 {
   ADCAudio adc_audio;
   uint16_t tft_row_number = 0;
+  float progress=0;
+  e_mode last_mode=martin_m1;
+
   const uint16_t display_width = DISPLAY_WIDTH;
   const uint16_t display_height = DISPLAY_HEIGHT - STATUS_BAR_HEIGHT; //allow space for status bar
 
@@ -159,11 +193,14 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
   }
 
   //override the image_write_line function to output images to a TFT display
-  void image_write_line(uint16_t line_rgb565[], uint16_t y, uint16_t width, uint16_t height, e_mode mode)
+  void image_write_line(uint16_t line_rgb565[], uint16_t y, uint16_t width, uint16_t height, e_mode decode_mode)
   {
     //write unscaled image to bmp file
     output_file.change_width(width);
-    
+
+    //update decode mode
+    output_file.change_mode(decode_mode);
+  
     if(++bmp_row_number < height){
       output_file.change_height(y+1);
       output_file.write_row_rgb565(line_rgb565);
@@ -188,15 +225,19 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
     }
 
     //update progress
-    char buffer[21];
-    snprintf(buffer, 21, "%10s: %ux%u",  tx_modes[mode], width, y+1);
-    draw_status_bar("RX Incoming ...");
-    draw_banner(buffer);
+    char buffer[15];
+    snprintf(buffer, 15, "%5s %ux%u", tx_modes_abbr[decode_mode], width, y+1);
+    draw_status_bar(buffer);
+    //draw_banner(buffer);
     Serial.println(buffer);
 
+    progress=y/(float)height;
+    last_mode=decode_mode;
   }
 
+ 
   void scope(uint16_t mag, int16_t freq) {
+  static const uint16_t palette[]={0x0000,0x0011,0x0023,0x0024,0x0043,0x0044,0x0044,0x0044,0x0044,0x0044,0x0044,0x0045,0x0045,0x0065,0x0065,0x0065,0x0065,0x0066,0x0066,0x0066,0x0066,0x0086,0x0087,0x0087,0x0087,0x0087,0x0088,0x00a8,0x00a8,0x00a8,0x00a8,0x00a9,0x00c9,0x00c9,0x00ca,0x00ca,0x00ca,0x00ea,0x00eb,0x00eb,0x00eb,0x010b,0x010c,0x010c,0x012c,0x012d,0x012d,0x012d,0x014e,0x014e,0x014e,0x016f,0x016f,0x016f,0x0190,0x0190,0x0190,0x01b1,0x01b1,0x01d1,0x01d2,0x01d2,0x01f2,0x01f3,0x0213,0x0213,0x0214,0x0234,0x0234,0x0255,0x0255,0x0276,0x0276,0x0296,0x0297,0x02b7,0x02b7,0x02d8,0x02d8,0x02f8,0x02f9,0x0319,0x0319,0x033a,0x035a,0x035a,0x037b,0x037b,0x039b,0x039c,0x03bc,0x03dc,0x03dc,0x03fd,0x03fd,0x041d,0x043e,0x043e,0x045e,0x045e,0x047f,0x049f,0x049f,0x04bf,0x04df,0x04df,0x04ff,0x051f,0x051f,0x053f,0x053f,0x055f,0x057f,0x057f,0x059f,0x05bf,0x05bf,0x0ddf,0x0ddf,0x0dff,0x0e1f,0x0e1f,0x0e3f,0x0e3f,0x0e5f,0x0e7f,0x0e7f,0x0e9f,0x0e9f,0x0ebf,0x0ebf,0x16df,0x16df,0x16ff,0x171f,0x171f,0x173f,0x173f,0x173f,0x175f,0x1f5f,0x1f7f,0x1f7f,0x1f9f,0x1f9f,0x1f9f,0x27bf,0x27bf,0x27df,0x27df,0x27df,0x27ff,0x2fff,0x2fff,0x2fff,0x2ffe,0x37fe,0x37fe,0x37fe,0x37fd,0x3ffd,0x3ffd,0x3ffc,0x3ffc,0x47fc,0x47fc,0x47fb,0x4ffb,0x4ffb,0x4ffa,0x57fa,0x57fa,0x57f9,0x5ff9,0x5ff9,0x5ff8,0x67f8,0x67f8,0x6ff7,0x6ff7,0x6ff7,0x77f6,0x77f6,0x7ff6,0x7ff5,0x87f5,0x87f4,0x8ff4,0x8ff4,0x8ff3,0x97d3,0x97d3,0x9fd2,0x9fb2,0xa7b2,0xa791,0xaf91,0xaf91,0xb770,0xb770,0xbf50,0xbf4f,0xc72f,0xc72f,0xcf2e,0xcf0e,0xd70e,0xdeed,0xdecd,0xe6cd,0xe6ac,0xeeac,0xee8c,0xf68b,0xf66b,0xfe6b,0xfe4b,0xfe2a,0xfe2a,0xfe0a,0xfe0a,0xfde9,0xfdc9,0xfdc9,0xfda8,0xfda8,0xfd88,0xfd68,0xfd68,0xfd47,0xfd27,0xfd27,0xfd07,0xfd06,0xfce6,0xfcc6,0xfcc6,0xfca6,0xfc85,0xfc85,0xfc65,0xfc45,0xfc45,0xfc25,0xfc24,0xfc04,0xfbe4,0xfbe4,0xfbc4,0xfbc4,0xfba3,0xfb83,0xfb83,0xfb63,0xfb63,0xfb43};
 
     const uint16_t scope_x = 168;
     const uint16_t scope_y = 234;
@@ -210,14 +251,17 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
     static uint16_t count=0;
     static uint32_t spectrum[scope_width];
     static uint32_t signal_strength = 0;
+    static uint8_t mean_f=0;
 
     const uint8_t f=(freq-1000)*scope_width/1500;
     const uint8_t Hz_1200 = (1200-1000)*scope_width/1500;
     const uint8_t Hz_1500 = (1500-1000)*scope_width/1500;
     const uint8_t Hz_2300 = (2300-1000)*scope_width/1500;
    
-    if (f>0 && f<scope_width) {
-      spectrum[f] = (spectrum[f] * 15 + mag)/16;
+    mean_f=(mean_f* 7 + f)/8;
+
+    if (mean_f>0 && mean_f<scope_width) {
+      spectrum[mean_f] = (spectrum[mean_f] * 15 + mag)/16;
     }
     signal_strength = (signal_strength * 15 + mag)/16;
     if (count>200 ) {
@@ -225,10 +269,8 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
       uint16_t waterfall[scope_width];
       for (int i=0;i<scope_width;i++) {
         float scaled_dB = waterfall_amp*20*log10(spectrum[i]);
-        scaled_dB = std::max(std::min(scaled_dB, 255.0f), 0.0f);
-         float exp=pow(scaled_dB/255,0.7)*255;
-        
-        waterfall[i]=display->colour565(scaled_dB,exp, 255-exp);
+        scaled_dB = std::max(std::min(scaled_dB, 255.0f), 0.0f);          
+        waterfall[i]=__builtin_bswap16(palette[(int)scaled_dB]);
    
       }
       waterfall[Hz_1200]=COLOUR_RED;
@@ -247,16 +289,26 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
       float scaled_dB = 2*20*log10(signal_strength);
       scaled_dB = std::max(std::min(scaled_dB, 149.0f), 0.0f);
       display->fillRect(scope_x, scope_y, 2, scaled_dB, COLOUR_YELLOW);
-      display->fillRect(scope_x+scaled_dB, scope_y, 2, scope_width-scaled_dB, COLOUR_BLACK);
+      display->fillRect(scope_x+scaled_dB, scope_y, 2, scope_width-scaled_dB, COLOUR_MAROON);
 
     }
     count++;
   }
+
   
   c_bmp_writer_stdio output_file;
   uint16_t bmp_row_number = 0;
 
   public:
+
+  float getProgress() {
+    return progress;
+  }
+
+  e_mode getLastMode() {
+    return last_mode;
+  }
+
 
   void open(const char* bmp_file_name){
     tft_row_number = 0;
@@ -282,12 +334,12 @@ void set_overlay(const char message[])
 {
   //Create a background gradient
   for(uint16_t x=0; x<overlay_width; x++) {
-    for(uint16_t y=0; y<overlay_height; y++) {
-      overlay.set_pixel(x, y, overlay.colour565(0, x*255/overlay_width, 255));
+    for(uint16_t y=0; y<14; y++) {
+     overlay.set_pixel(x, y, overlay.colour565(0, x*255/overlay_width, 255));
     }
   }
   uint16_t text_width = strlen(message) * 12;
-  overlay.draw_string((overlay_width-text_width)/2, (overlay_height-16)/2, font_16x12, message, COLOUR_ORANGE);
+  overlay.draw_string((overlay_width-text_width)/2, 4, font_8x5, message, COLOUR_ORANGE);
 }
 
 //Derive a class from sstv encoder and override hardware specific functions
@@ -332,8 +384,7 @@ class c_sstv_encoder_pwm : public c_sstv_encoder
       snprintf(status, 100, "transmitting %u/%u (%u%%)", y+1, height, (100*(y+1))/height);
       draw_banner(status);
     }
-    uint16_t pixel = row[image_x];
-    
+    uint16_t pixel;
     //overlay a text banner
     uint16_t overlay_y = (uint32_t)y * overlay_width / width;
     uint16_t overlay_x = (uint32_t)x * overlay_width / width;
@@ -341,6 +392,9 @@ class c_sstv_encoder_pwm : public c_sstv_encoder
     {
       pixel = overlay_buffer[(overlay_y*overlay_width) + overlay_x];
       pixel = (pixel >> 8) | (pixel << 8);
+      if (pixel==CHROMA) pixel = row[image_x];
+    } else {
+      pixel = row[image_x];
     }
 
     if(colour == 0) return ((pixel >> 11) & 0x1F) << 3;     //r 
@@ -396,6 +450,7 @@ class c_slideshow
   void update_slideshow()
   {
     if(num_bitmaps == 0) return;
+    delay(50);
     bool redraw = false;
     static const uint16_t timeouts[] = {0, 1, 2, 5, 10, 30, 60, 60*2, 60*5};
     uint16_t timeout_milliseconds = 1000 * timeouts[settings.slideshow_timeout];
@@ -407,12 +462,16 @@ class c_slideshow
       redraw = true;
     }
     if(button_right.is_pressed()) {
+      
       get_bitmap_index(root, bitmap_index);
       filename = root.fileName();
       SDFS.remove(filename);
+      char msg[]="Deleted ";
+      draw_banner(strcat(msg,filename.c_str()));
       bitmap_index = std::min((int)bitmap_index, num_bitmaps-2);
       root = SDFS.openDir("/");
       num_bitmaps--;
+      delay(300);
       if(num_bitmaps == 0) return;
       redraw = true;
     }
@@ -430,9 +489,10 @@ class c_slideshow
       get_bitmap_index(root, bitmap_index);
       filename = root.fileName();
       Serial.println(filename);
-      display_image(filename.c_str());
+      int16_t mode=display_image(filename.c_str());
       uint16_t width = strlen(filename.c_str())*6+10;
       draw_banner(filename.c_str());
+      if (mode>=0) draw_banner(tx_modes[mode],200);
       draw_button_bar("Menu", "Delete", "Last", "Next");
       last_update_time = millis();
     }
@@ -450,10 +510,11 @@ void setup() {
   initialise_sdcard();
   VFS.root(SDFS);
 
-}
+  load();
+
+
 
 void loop() {
-
   c_sstv_decoder_fileio sstv_decoder(15000);
   sstv_decoder.start();
   sstv_decoder.open("temp");
@@ -462,56 +523,95 @@ void loop() {
   c_slideshow slideshow;
   bool draw = true;
   bool image_in_progress = false;
+  bool last_image_in_progress = false;
   bool image_complete = false;
   view_mode = rx_mode;
-  display->clear(COLOUR_NAVY);
-  display->drawString((DISPLAY_WIDTH-(12*strlen("Pico SSTV")))/2, 100, font_16x12, "Pico SSTV", COLOUR_GREY, COLOUR_NAVY);
+  draw_blank_screen();
   strncpy(settings.overlay_text, "Pi Pico SSTV", 24);
   load();
-  set_overlay(settings.overlay_text);
+  //set_overlay(settings.overlay_text);
 
   while(1) {
-    
+
     //process rx regardless of mode
     static const uint16_t timeouts[] = {UINT16_MAX, 1, 2, 5, 10, 30, 60, 60*2, 60*5};
+    static const float completion[] = {0.9, 0.75, 0.5};
     const uint16_t timeout_seconds = timeouts[settings.lost_signal_timeout];
+    
     image_complete = sstv_decoder.decode_image_non_blocking(timeout_seconds, settings.auto_slant_correction, image_in_progress);
+    
+    if ((image_in_progress)&&(!last_image_in_progress)) {
+      draw_blank_screen();
+      draw_button_bar("", "Stop", "", "");
+    }
+    last_image_in_progress=image_in_progress;
+    
     if(image_complete) {
       sstv_decoder.close();
-      SDFS.rename("temp", rx_filename);
-      get_new_filename(rx_filename, 100);
+      if (sstv_decoder.getProgress()>completion[settings.min_completion]) {
+        SDFS.rename("temp", rx_filename);
+        create_thumbnail(rx_filename, sstv_decoder.getLastMode());
+        get_new_filename(rx_filename, 100);
+      }
       sstv_decoder.open("temp");
       draw = true;
     }
     if(image_in_progress) {
       view_mode = rx_mode;
+      if (button_right.is_pressed()) {
+          sstv_decoder.stop();
+          return;
+      }
     } else {
       if(button_left.is_pressed()) {
         launch_menu();
         if(view_mode == slideshow_mode) slideshow.launch_slideshow();
         if(view_mode == rx_mode) {
-          display->clear(COLOUR_NAVY); 
-          display->drawString((DISPLAY_WIDTH-(12*strlen("Pico SSTV")))/2, 100, font_16x12, "Pico SSTV", COLOUR_GREY, COLOUR_NAVY);
+          draw_blank_screen();
           draw = true;
         }
+      } else if (button_right.is_pressed() && (view_mode != slideshow_mode)) {    
+       
+        text_entry(rxcallsign_text, 10);
+        rst_entry(rst_text);
+        rst_text[3]=0;
+        overlay.clear(0);
+        overlay.draw_image(20, 130, 106, 80, scaled_image);
+        overlay.draw_rect(19,129,108,82,COLOUR_WHITE);
+        settings.transmit_mode=sstv_decoder.getLastMode();
+        tx_file_browser();
+        draw = true;
       }
+
     }
     if(view_mode == slideshow_mode) {
+      
       slideshow.update_slideshow();
     } else if(view_mode == rx_mode && draw) {
-      draw_button_bar("Menu", "", "", "");
+      
+      draw_button_bar("Menu", "Reply", "", "");
+      
       display->fillRect(DISPLAY_WIDTH/2, DISPLAY_HEIGHT-STATUS_BAR_HEIGHT-1, STATUS_BAR_HEIGHT, DISPLAY_WIDTH/2, COLOUR_BLACK);
       draw = false;
     }
+  
 
   }
   sstv_decoder.stop();
+  
 }
 
 void draw_splash_screen()
 {
   display->writeImage(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT, splash);
   sleep_ms(1000);
+}
+
+void draw_blank_screen()
+{
+  display->clear(COLOUR_NAVY); 
+ display->drawString((DISPLAY_WIDTH-(12*strlen("Pico SSTV")))/2, 100, font_16x12, "Pico SSTV", COLOUR_GREY, COLOUR_NAVY);
+ //display->drawString(20,40,"Ciao",COLOUR_GREY,&FreeSansBold24pt7b);
 }
 
 void configure_display()
@@ -582,7 +682,7 @@ void draw_banner(const char* message, uint16_t y)
 
 void draw_status_bar(const char* message)
 {
-  display->fillRect(0, DISPLAY_HEIGHT-STATUS_BAR_HEIGHT-1, STATUS_BAR_HEIGHT, DISPLAY_WIDTH/2, COLOUR_BLACK);
+  display->fillRect(0, DISPLAY_HEIGHT-STATUS_BAR_HEIGHT-1, STATUS_BAR_HEIGHT, DISPLAY_WIDTH/4, COLOUR_BLACK);
   #define MARGIN ((STATUS_BAR_HEIGHT - 8)/2)
   display->drawString(MARGIN, DISPLAY_HEIGHT-STATUS_BAR_HEIGHT+MARGIN, font_8x5, message, COLOUR_WHITE, COLOUR_BLACK);
 }
@@ -644,7 +744,7 @@ void transmit_image(const char* filename) {
 
 void tx_file_browser() {
   bool redraw = true;
-  Dir root = SDFS.openDir("/");
+  Dir root = SDFS.openDir("/tx/");
   const uint16_t num_bitmaps = count_bitmaps(root);
   if(num_bitmaps == 0) return;
   uint16_t bitmap_index = 0;
@@ -663,10 +763,13 @@ void tx_file_browser() {
     }
     if(redraw) {
       get_bitmap_index(root, bitmap_index);
-      filename = root.fileName();
-      Serial.println(filename);
+      filename = "/tx/"+root.fileName();
+      
+      drawOverlay(txcallsign_text,rxcallsign_text,rst_text);
+      set_overlay(settings.overlay_text);
       display_image(filename.c_str(), settings.overlay);
-      draw_banner(filename.c_str(), settings.overlay?30:0);
+      //draw_banner(filename.c_str(), settings.overlay?30:0);
+      draw_banner(tx_modes[settings.transmit_mode]);
       draw_button_bar("Transmit", "Cancel", "Last", "Next");
       redraw = false;
     }
@@ -676,17 +779,19 @@ void tx_file_browser() {
       return;
     }
     if(button_right.is_pressed()) {
+      draw_blank_screen();
       return;
     }
   }
 
 }
 
-void display_image(const char* filename, bool show_overlay)
+int16_t display_image(const char* filename, bool show_overlay)
 {
   c_bmp_reader_stdio bitmap;
   uint16_t width, height;
-  bitmap.open(filename, width, height);
+  int16_t mode;
+  bitmap.open(filename, width, height, mode);
 
   const uint16_t display_width = DISPLAY_WIDTH, display_height = DISPLAY_HEIGHT-STATUS_BAR_HEIGHT;
   uint16_t tft_row_number = 0;
@@ -699,30 +804,18 @@ void display_image(const char* filename, bool show_overlay)
     uint16_t scaled_row[display_width];
     uint16_t pixel_number = 0;
     uint16_t overlay_y = (uint32_t)y * overlay_width / width;
-    
-    //overlay a text banner    
-    if(show_overlay && overlay_y<overlay_height) {
-      for(uint16_t x=0; x<width; x++) {
-        uint16_t overlay_x = ((uint32_t)x * overlay_width + (overlay_width/2))/ width;
-        while(pixel_number <= overlay_x) {
-          //display expects byteswapped data
-          uint16_t pixel = overlay_buffer[(overlay_y*overlay_width) + overlay_x];
-          //pixel = (pixel >> 8) | (pixel << 8);
-          scaled_row[pixel_number] = pixel;
-          pixel_number++;
-        }
-      }
-    } else {
+  
       for(uint16_t x=0; x<width; x++) {
         uint16_t scaled_x = (static_cast<uint32_t>(x) * display_width + (display_width/2)) / width;
         uint16_t overlay_x = (uint32_t)x * overlay_width / width;
         while(pixel_number <= scaled_x) {
           //display expects byteswapped data
-          scaled_row[pixel_number] = ((line_rgb565[x] & 0xff) << 8) | ((line_rgb565[x] & 0xff00) >> 8);
+          uint16_t pixel = overlay_buffer[(overlay_y*overlay_width) + overlay_x];
+          if (pixel==CHROMA || !show_overlay) pixel=((line_rgb565[x] & 0xff) << 8) | ((line_rgb565[x] & 0xff00) >> 8);
+          scaled_row[pixel_number] = pixel;
           pixel_number++;
         }
       }
-    }
 
     uint32_t scaled_y = (static_cast<uint32_t>(y) * display_height + (display_height/2)) / height;
     while(tft_row_number <= scaled_y) {
@@ -732,6 +825,23 @@ void display_image(const char* filename, bool show_overlay)
   }
 
   bitmap.close();
+  return mode;
+}
+
+void drawOutlined(uint16_t x, uint16_t y, String msg, uint16_t fg, uint16_t bg ) {
+    overlay.draw_string(x-2,y-2,&FreeSansBold24pt7b,msg.c_str(),bg);
+    overlay.draw_string(x+2,y-2,&FreeSansBold24pt7b,msg.c_str(),bg);
+    overlay.draw_string(x-2,y+2,&FreeSansBold24pt7b,msg.c_str(),bg);
+    overlay.draw_string(x+2,y+2,&FreeSansBold24pt7b,msg.c_str(),bg);
+    overlay.draw_string(x,y,&FreeSansBold24pt7b,msg.c_str(),fg);
+}
+
+
+void drawOverlay(String callsignSender, String callsignReceiver, String msg ) {
+    if (callsignReceiver=="") callsignReceiver="CQ CQ";
+    drawOutlined(20,60,callsignReceiver,COLOUR_ORANGE,COLOUR_WHITE);
+    drawOutlined(40,110,msg,COLOUR_ORANGE,COLOUR_WHITE);
+    drawOutlined(140,220,callsignSender,COLOUR_RED,COLOUR_WHITE);
 }
 
 void launch_menu()
@@ -743,11 +853,18 @@ void launch_menu()
     "Slideshow",
     "Settings"
   };
-  menu("Menu", menu_selection, menu_selections, 4);
+
+
+   String title="Menu";
+
+  menu(title.c_str(), menu_selection, menu_selections, 4);
   if(menu_selection == 0) {
     view_mode = rx_mode;
     return;
   } else if(menu_selection == 1) {
+    overlay.clear(0);
+    rxcallsign_text[0]=0;
+    rst_text[0]=0;
     tx_file_browser();
     return;
   } else if(menu_selection == 2) {
@@ -758,27 +875,48 @@ void launch_menu()
     const char * const menu_selections[] = {
       "Auto Slant Correction",
       "Lost Signal Timeout",
+      "Min save %",
       "Transmit Mode",
       "Slideshow Timeout",
       "Overlay",
       "Overlay Text",
+      "Wifi"
     };
-    if(menu("Settings", menu_selection, menu_selections, 6)) {
-      if(menu_selection == 0) {//Auto slant correction
-        const char * const menu_selections[] = {"Off", "On"};
-        menu("Auto Slant Correction", settings.auto_slant_correction, menu_selections, 2);
-      } else if(menu_selection == 1) { //lost signal timeout
-        get_timeout_seconds("Lost Signal Timeout", settings.lost_signal_timeout);
-      } else if(menu_selection == 2) { //transmit mode
-        get_transmit_mode(settings.transmit_mode);
-      } else if(menu_selection == 3) { //slideshow_timeout
-        get_timeout_seconds("Slideshow Timeout", settings.slideshow_timeout);
-      } else if(menu_selection == 4) {//overlay
-        const char * const menu_selections[] = {"Off", "On"};
-        menu("Auto Slant Correction", settings.overlay, menu_selections, 2);
-      } else if(menu_selection == 5) {//overlay_text
-        text_entry(settings.overlay_text, 24);
-        set_overlay(settings.overlay_text);
+    if(menu("Settings", menu_selection, menu_selections, 7)) {
+      switch (menu_selection) 
+      {
+        case 0: { //Auto slant correction
+          const char * const menu_selections[] = {"Off", "On"};
+          menu("Auto Slant Correction", settings.auto_slant_correction, menu_selections, 2);
+        }
+          break;
+        case 1: { //lost signal timeout
+          get_timeout_seconds("Lost Signal Timeout", settings.lost_signal_timeout);
+        }
+          break;
+        case 2: { 
+           const char * const menu_selections[] = {"90%", "75%","50%"};
+          menu("Min % for save image", settings.min_completion, menu_selections, 3);
+        }
+          break;
+        case 3: { //transmit mode
+          get_transmit_mode(settings.transmit_mode);
+        }
+          break;
+        case 4: { //slideshow_timeout
+          get_timeout_seconds("Slideshow Timeout", settings.slideshow_timeout);
+        }
+          break;
+        case 5: { //overlay
+          const char * const menu_selections[] = {"Off", "On"};
+          menu("Overlay text", settings.overlay, menu_selections, 2);
+        }
+          break;
+        case 6: { //overlay_text
+          text_entry(settings.overlay_text, 24);      
+        }
+          break;
+       
       }
     }
     save();
@@ -803,25 +941,9 @@ void get_timeout_seconds(const char* title, uint8_t & menu_selection)
 
 void get_transmit_mode(uint8_t & menu_selection)
 {
-  const char * const menu_selections[] = {
-    "Martin M1",
-    "Martin M2",
-    "Scottie S1",
-    "Scottie S2",
-    "Scottie DX",
-    "PD 50",
-    "PD 90",
-    "PD 120",
-    "PD 180",
-    "Robot 24",
-    "Robot 36",
-    "Robot 72",
-    "Robot B&W 8",
-    "Robot B&W 12",
-    "Robot B&W 24",
-    "Robot B&W 36",
-  };
-  menu("Transmit Mode", menu_selection, menu_selections, 16);
+
+
+  menu("Transmit Mode", menu_selection, tx_modes, 16);
 }
 
 bool menu(const char* title, uint8_t &selection, const char * const menu_items[], uint8_t num_selections)
@@ -844,6 +966,7 @@ bool menu(const char* title, uint8_t &selection, const char * const menu_items[]
   draw_button_bar("OK", "Cancel", "Up", "Down");
   
   while(1) {
+    
     if(button_down.is_pressed() && menu_item > 0){menu_item--; draw = true;} 
     if(button_up.is_pressed() && menu_item < num_menu_items-1){menu_item++; draw = true;}
     if(button_left.is_pressed()){selection = menu_item; return true;} //ok
@@ -969,16 +1092,102 @@ void text_entry(char string[], uint8_t n)
   }
 }
 
+void rst_entry(char string[])
+{
+  uint8_t cursor = 0;
+  uint8_t n=3;
+  display->clear(COLOUR_BLACK);
+  display->drawString((DISPLAY_WIDTH-(18*12))/2, 90, font_16x12, "Select RST (or 73)", COLOUR_YELLOW, COLOUR_BLACK);
+  draw_button_bar("<", ">", "+", "-");
+
+  while(1) {
+    
+    display->drawRect((DISPLAY_WIDTH-(n*12))/2, 120, 16, n*12, COLOUR_NAVY);
+    display->drawString((DISPLAY_WIDTH-(n*12))/2, 120, font_16x12, string, COLOUR_WHITE, COLOUR_NAVY);
+    display->drawRect((DISPLAY_WIDTH-(n*12))/2 + cursor*12, 120, 16, 12, COLOUR_RED);
+    
+    if(button_down.is_pressed()) string[cursor]++; 
+    if(button_up.is_pressed()) string[cursor]--;
+    if(button_left.is_pressed()) cursor--;
+    if(button_right.is_pressed()) cursor++;
+
+    if (cursor<0) cursor=0;
+    if (string[cursor]<' ') string[cursor]=' ';
+    else if (string[cursor]=='/') string[cursor]=' ';
+    else if (string[cursor]=='!') string[cursor]='0';
+    else if (string[cursor]>'9') string[cursor]='9';
+    if(cursor == n) return;
+    cursor %= n;
+    delay(10);
+  }
+}
+
+#define version 100
+
 void save() {
-  EEPROM.put(4, settings);
+  EEPROM.put(sizeof(settings), settings);
   uint32_t scores_stored = 0;
   EEPROM.get(0, scores_stored);
-  if(scores_stored != 125) EEPROM.put(0, 125);
+  if(scores_stored != version) EEPROM.put(0, version);
   EEPROM.commit();
 }
 
 void load() {
   uint32_t scores_stored = 0;
   EEPROM.get(0, scores_stored);
-  if(scores_stored == 125) EEPROM.get(4, settings);
+  if(scores_stored == version) EEPROM.get(sizeof(settings), settings);
 }
+
+void create_thumbnail(const char* filename, e_mode mode)
+{
+  c_bmp_reader_stdio bitmap;
+  uint16_t width, height;
+ 
+  bitmap.open(filename, width, height);
+  float step_x;
+  float step_y;
+
+  switch (mode) {
+    case pd_120:
+    case pd_180:
+      step_x=6;
+      step_y=6;
+    break;
+    case bw8:
+    case robot24:
+      step_x=1.5;
+      step_y=1.5;
+    break;
+    default:
+      step_x=3;
+      step_y=3;
+    break;
+  }
+ 
+  //todo: mode depedent scale
+
+  const uint16_t t_width = width/step_x, ty_height = height/step_y;
+  uint16_t tft_row_number = 0;
+
+  for(uint16_t y=0; y<height; y++) {
+    uint16_t line_rgb565[width];
+    bitmap.read_row_rgb565(line_rgb565);
+
+    uint16_t pixel_number = 0;
+
+      for(uint16_t x=0; x<width; x++) {
+       
+        //while(pixel_number <= x) {
+          //display expects byteswapped data
+          uint16_t pixel=((line_rgb565[x] & 0xff) << 8) | ((line_rgb565[x] & 0xff00) >> 8);
+          uint16_t scaled_x=x/step_x;
+          uint16_t scaled_y=y/step_y;
+          scaled_image[scaled_x+scaled_y*t_width] = pixel;
+         // pixel_number++;
+        }
+      } 
+  
+  bitmap.close();
+}
+
+/////////////////////////////////////////////////////////
