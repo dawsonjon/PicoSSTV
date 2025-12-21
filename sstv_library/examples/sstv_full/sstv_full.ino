@@ -778,6 +778,41 @@ e_sstv_tx_mode convert_mode(e_mode rx_mode)
 			return tx_martin_m1;
 	}
 }
+e_mode convert_mode(e_sstv_tx_mode tx_mode)
+{
+	switch (tx_mode) {
+		case tx_martin_m1:
+			return martin_m1;
+		case tx_martin_m2:
+			return martin_m2;
+		case tx_scottie_s1:
+			return scottie_s1;
+		case tx_scottie_s2:
+			return scottie_s2;
+		case tx_scottie_dx:
+			return scottie_dx;
+		case tx_PD_50:
+			return pd_50;
+		case tx_PD_90:
+			return pd_90;
+		case tx_PD_120:
+			return pd_120;
+		case tx_PD_180:
+			return pd_180;
+		case tx_robot_24:
+			return robot24;
+		case tx_robot_36:
+			return robot36;
+		case tx_robot_72:
+			return robot72;
+		case tx_bw_8:
+			return bw8;
+		case tx_bw_12:
+			return bw12;
+		default:
+			return martin_m1;
+	}
+}
 
 void tx_file_browser() {
   bool redraw = true;
@@ -806,7 +841,7 @@ void tx_file_browser() {
       set_overlay(settings.overlay_text);
       display_image(filename.c_str(), settings.overlay);
       //draw_banner(filename.c_str(), settings.overlay?30:0);
-      draw_banner(rx_modes[settings.transmit_mode]);
+      draw_banner(rx_modes[convert_mode((e_sstv_tx_mode)settings.transmit_mode)]);
       draw_button_bar("Transmit", "Cancel", "Last", "Next");
       redraw = false;
     }
