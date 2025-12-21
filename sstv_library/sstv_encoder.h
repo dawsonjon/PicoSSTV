@@ -16,6 +16,25 @@
 
 #include <cstdint>
 
+const char * const tx_modes[] = {
+    "Martin M1",
+    "Martin M2",
+    "Scottie S1",
+    "Scottie S2",
+    "Scottie DX",
+    "PD 50",
+    "PD 90",
+    "PD 120",
+    "PD 180",
+    "Robot 24",
+    "Robot 36",
+    "Robot 72",
+    "Robot B&W 8",
+    "Robot B&W 12",
+	"Robot B&W 24",
+    "Robot B&W 36"
+  };
+
 enum e_sstv_tx_mode {
   tx_martin_m1, 
   tx_martin_m2, 
@@ -34,7 +53,6 @@ enum e_sstv_tx_mode {
   tx_bw_24,
   tx_bw_36
 };
-
 
 class c_sstv_encoder
 {

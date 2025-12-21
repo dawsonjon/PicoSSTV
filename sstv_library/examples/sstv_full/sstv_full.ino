@@ -52,6 +52,7 @@
 #include <algorithm>
 
 
+
 //CONFIGURATION SECTION
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -115,6 +116,7 @@ void launch_menu();
 uint16_t count_bitmaps(Dir &root);
 void get_bitmap_index(Dir &root, uint16_t index);
 void create_thumbnail(const char* filename, e_mode mode);
+e_sstv_tx_mode convert_mode(e_mode rx_mode);
 
 ILI934X *display;
 #define DISPLAY_WIDTH 320
@@ -226,7 +228,7 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
 
     //update progress
     char buffer[15];
-    snprintf(buffer, 15, "%5s %ux%u", tx_modes_abbr[decode_mode], width, y+1);
+    snprintf(buffer, 15, "%5s %ux%u", rx_modes_abbr[decode_mode], width, y+1);
     draw_status_bar(buffer);
     //draw_banner(buffer);
     Serial.println(buffer);
@@ -492,7 +494,7 @@ class c_slideshow
       int16_t mode=display_image(filename.c_str());
       uint16_t width = strlen(filename.c_str())*6+10;
       draw_banner(filename.c_str());
-      if (mode>=0) draw_banner(tx_modes[mode],200);
+      if (mode>=0) draw_banner(rx_modes[mode],200);
       draw_button_bar("Menu", "Delete", "Last", "Next");
       last_update_time = millis();
     }
@@ -512,7 +514,7 @@ void setup() {
 
   load();
 
-
+}
 
 void loop() {
   c_sstv_decoder_fileio sstv_decoder(15000);
@@ -578,7 +580,7 @@ void loop() {
         overlay.clear(0);
         overlay.draw_image(20, 130, 106, 80, scaled_image);
         overlay.draw_rect(19,129,108,82,COLOUR_WHITE);
-        settings.transmit_mode=sstv_decoder.getLastMode();
+        settings.transmit_mode=convert_mode(sstv_decoder.getLastMode());
         tx_file_browser();
         draw = true;
       }
@@ -594,7 +596,6 @@ void loop() {
       display->fillRect(DISPLAY_WIDTH/2, DISPLAY_HEIGHT-STATUS_BAR_HEIGHT-1, STATUS_BAR_HEIGHT, DISPLAY_WIDTH/2, COLOUR_BLACK);
       draw = false;
     }
-  
 
   }
   sstv_decoder.stop();
@@ -742,6 +743,42 @@ void transmit_image(const char* filename) {
   display->drawString((DISPLAY_WIDTH-(12*strlen("Pico SSTV")))/2, 100, font_16x12, "Pico SSTV", COLOUR_GREY, COLOUR_NAVY);
 }
 
+e_sstv_tx_mode convert_mode(e_mode rx_mode)
+{
+	switch (rx_mode) {
+		case martin_m1:
+			return tx_martin_m1;
+		case martin_m2:
+			return tx_martin_m2;
+		case scottie_s1:
+			return tx_scottie_s1;
+		case scottie_s2:
+			return tx_scottie_s2;
+		case scottie_dx:
+			return tx_scottie_dx;
+		case pd_50:
+			return tx_PD_50;
+		case pd_90:
+			return tx_PD_90;
+		case pd_120:
+			return tx_PD_120;
+		case pd_180:
+			return tx_PD_180;
+		case robot24:
+			return tx_robot_24;
+		case robot36:
+			return tx_robot_36;
+		case robot72:
+			return tx_robot_72;
+		case bw8:
+			return tx_bw_8;
+		case bw12:
+			return tx_bw_12;
+		default:
+			return tx_martin_m1;
+	}
+}
+
 void tx_file_browser() {
   bool redraw = true;
   Dir root = SDFS.openDir("/tx/");
@@ -769,7 +806,7 @@ void tx_file_browser() {
       set_overlay(settings.overlay_text);
       display_image(filename.c_str(), settings.overlay);
       //draw_banner(filename.c_str(), settings.overlay?30:0);
-      draw_banner(tx_modes[settings.transmit_mode]);
+      draw_banner(rx_modes[settings.transmit_mode]);
       draw_button_bar("Transmit", "Cancel", "Last", "Next");
       redraw = false;
     }
@@ -854,7 +891,6 @@ void launch_menu()
     "Settings"
   };
 
-
    String title="Menu";
 
   menu(title.c_str(), menu_selection, menu_selections, 4);
@@ -879,10 +915,9 @@ void launch_menu()
       "Transmit Mode",
       "Slideshow Timeout",
       "Overlay",
-      "Overlay Text",
-      "Wifi"
+      "Overlay Text"
     };
-    if(menu("Settings", menu_selection, menu_selections, 7)) {
+    if(menu("Settings", menu_selection, menu_selections, sizeof(menu_selections))) {
       switch (menu_selection) 
       {
         case 0: { //Auto slant correction
@@ -943,7 +978,7 @@ void get_transmit_mode(uint8_t & menu_selection)
 {
 
 
-  menu("Transmit Mode", menu_selection, tx_modes, 16);
+  menu("Transmit Mode", menu_selection, tx_modes, sizeof(tx_modes));
 }
 
 bool menu(const char* title, uint8_t &selection, const char * const menu_items[], uint8_t num_selections)
@@ -1189,5 +1224,3 @@ void create_thumbnail(const char* filename, e_mode mode)
   
   bitmap.close();
 }
-
-/////////////////////////////////////////////////////////

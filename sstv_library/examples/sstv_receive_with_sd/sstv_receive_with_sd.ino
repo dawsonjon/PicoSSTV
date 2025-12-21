@@ -177,7 +177,7 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
     //update progress
     display->fillRect(0, display_height, 20, display_width, COLOUR_BLACK);
     char buffer[21];
-    snprintf(buffer, 21, "%10s: %ux%u", tx_modes[mode], width, y+1);
+    snprintf(buffer, 21, "%10s: %ux%u", rx_modes[mode], width, y+1);
     display->drawString(0, display_height+10, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK);
     Serial.println(buffer);
 

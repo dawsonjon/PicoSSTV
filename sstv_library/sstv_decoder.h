@@ -16,7 +16,7 @@
 
 #include "half_band_filter2.h"
 
-const char * const tx_modes[] = {
+const char * const rx_modes[] = {
     "Martin M1",
     "Martin M2",
     "Scottie S1",
@@ -37,7 +37,7 @@ const char * const tx_modes[] = {
     
   };
   
-  const char * const tx_modes_abbr[] = {
+  const char * const rx_modes_abbr[] = {
     "M1",
     "M2",
     "S1",
