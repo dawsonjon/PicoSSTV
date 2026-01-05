@@ -26,7 +26,6 @@ typedef struct {
 } BMPInfoHeader;
 #pragma pack(pop)
 
-
 void c_bmp_writer :: open(const char* filename, uint16_t width, uint16_t height)
 {
     if(!file_open(filename)) return;
@@ -36,11 +35,12 @@ void c_bmp_writer :: open(const char* filename, uint16_t width, uint16_t height)
     m_width_padded = (width * 3 + 3) & ~3;
     m_image_size = m_width_padded * height;
     m_y = 0;
+	m_mode = 0;
 
     BMPFileHeader file_header = {
         .bfType = 0x4D42,
         .bfSize = static_cast<uint32_t>(sizeof(BMPFileHeader) + sizeof(BMPInfoHeader) + m_image_size),
-        .bfReserved1 = 0,
+        .bfReserved1 = 0,			// We use it as a custom field in the application
         .bfReserved2 = 0,
         .bfOffBits = sizeof(BMPFileHeader) + sizeof(BMPInfoHeader),
     };
@@ -84,6 +84,11 @@ void c_bmp_writer :: change_height(uint16_t height)
     m_image_size = m_width_padded * height;
 }
 
+void c_bmp_writer :: change_mode(uint16_t mode)
+{
+    m_mode = mode+1;
+}
+
 //If the width or height change, it will be necassary to update the file header
 void c_bmp_writer :: update_header()
 {
@@ -91,7 +96,7 @@ void c_bmp_writer :: update_header()
     BMPFileHeader file_header = {
         .bfType = 0x4D42,
         .bfSize = m_file_size,
-        .bfReserved1 = 0,
+        .bfReserved1 = m_mode,
         .bfReserved2 = 0,
         .bfOffBits = sizeof(BMPFileHeader) + sizeof(BMPInfoHeader),
     };
@@ -152,6 +157,11 @@ void c_bmp_writer :: write_row_rgb565(uint16_t* rgb565_data)
 
 uint8_t c_bmp_reader :: open(const char* filename, uint16_t &width, uint16_t &height) 
 {
+	int16_t dummy=0;
+	return open(filename, width, height, dummy);
+}
+uint8_t c_bmp_reader :: open(const char* filename, uint16_t &width, uint16_t &height, int16_t &mode) 
+{
     if(!file_open(filename)) return -1;
     BMPFileHeader file_header;
     file_read(&file_header, sizeof(file_header), 1);
@@ -170,6 +180,8 @@ uint8_t c_bmp_reader :: open(const char* filename, uint16_t &width, uint16_t &he
     m_row_bytes = (((width * m_bpp) + 31) / 32) * 4;
     m_start_of_image = file_header.bfOffBits;
     m_y = 0;
+	
+	m_mode=mode=file_header.bfReserved1-1;
 
     if (m_bpp == 8) {
         uint16_t num_colors = info_header.biClrUsed ? info_header.biClrUsed : 256;

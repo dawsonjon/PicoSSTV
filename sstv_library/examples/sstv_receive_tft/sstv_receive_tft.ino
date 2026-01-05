@@ -104,7 +104,7 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
   }
 
   //override the image_write_line function to output images to a TFT display
-  void image_write_line(uint16_t line_rgb565[], uint16_t y, uint16_t width, uint16_t height, const char* mode_string)
+  void image_write_line(uint16_t line_rgb565[], uint16_t y, uint16_t width, uint16_t height, e_mode mode)
   {
 
     //scale image to fit TFT size
@@ -131,7 +131,7 @@ class c_sstv_decoder_fileio : public c_sstv_decoder
     //update progress
     display->fillRect(0, display_height, 20, display_width, COLOUR_BLACK);
     char buffer[21];
-    snprintf(buffer, 21, "%10s: %ux%u", mode_string, width, y+1);
+    snprintf(buffer, 21, "%10s: %ux%u", rx_modes[mode], width, y+1);
     display->drawString(0, display_height+10, font_8x5, buffer, COLOUR_WHITE, COLOUR_BLACK);
     //Serial.println(buffer);
 

@@ -17,6 +17,8 @@
 #include "sstv_decoder.h"
 #include "cordic.h"
 
+
+
 //from the sample number work out the colour and x/y coordinates
 void c_sstv_decoder :: sample_to_pixel(uint16_t &x, uint16_t &y, uint8_t &colour, int32_t image_sample)
 {
@@ -867,7 +869,7 @@ bool c_sstv_decoder :: decode_image_non_blocking(uint8_t timeout_s, bool slant_c
         int16_t cb = m_line[x][2];
         line_rgb565[x] = ycrcb_to_rgb565(y, cr, cb);
       }
-      image_write_line(line_rgb565, pixel_y*2, modes[decode_mode].width, modes[decode_mode].max_height*2, modes[decode_mode].mode_string);
+      image_write_line(line_rgb565, pixel_y*2, modes[decode_mode].width, modes[decode_mode].max_height*2, decode_mode);
 
       for(uint16_t x=0; x<modes[decode_mode].width; ++x)
       {
@@ -876,7 +878,7 @@ bool c_sstv_decoder :: decode_image_non_blocking(uint8_t timeout_s, bool slant_c
         int16_t cb = m_line[x][2];
         line_rgb565[x] = ycrcb_to_rgb565(y, cr, cb);
       }
-      image_write_line(line_rgb565, pixel_y*2+1, modes[decode_mode].width, modes[decode_mode].max_height*2, modes[decode_mode].mode_string);
+      image_write_line(line_rgb565, pixel_y*2+1, modes[decode_mode].width, modes[decode_mode].max_height*2, decode_mode);
     }
     else if (decode_mode == robot24 || decode_mode == robot72) {
 
@@ -888,7 +890,7 @@ bool c_sstv_decoder :: decode_image_non_blocking(uint8_t timeout_s, bool slant_c
         
         line_rgb565[x] = ycrcb_to_rgb565(y, cr, cb);
       }
-      image_write_line(line_rgb565, pixel_y, modes[decode_mode].width, modes[decode_mode].max_height, modes[decode_mode].mode_string);
+      image_write_line(line_rgb565, pixel_y, modes[decode_mode].width, modes[decode_mode].max_height, decode_mode);
     
     }
     else if (decode_mode == robot36) {
@@ -915,7 +917,7 @@ bool c_sstv_decoder :: decode_image_non_blocking(uint8_t timeout_s, bool slant_c
         line_rgb565[x] = ycrcb_to_rgb565(y, cr, cb);
          
       }
-      image_write_line(line_rgb565, pixel_y, modes[decode_mode].width, modes[decode_mode].max_height, modes[decode_mode].mode_string);
+      image_write_line(line_rgb565, pixel_y, modes[decode_mode].width, modes[decode_mode].max_height, decode_mode);
     }
     else if (decode_mode == bw8 || decode_mode == bw12) {
 
@@ -928,7 +930,7 @@ bool c_sstv_decoder :: decode_image_non_blocking(uint8_t timeout_s, bool slant_c
 
         line_rgb565[x] = rgb_to_rgb565(r, g, b);
       }
-      image_write_line(line_rgb565, pixel_y, modes[decode_mode].width, modes[decode_mode].max_height, modes[decode_mode].mode_string);
+      image_write_line(line_rgb565, pixel_y, modes[decode_mode].width, modes[decode_mode].max_height, decode_mode);
     } 
     else
     {
@@ -940,7 +942,7 @@ bool c_sstv_decoder :: decode_image_non_blocking(uint8_t timeout_s, bool slant_c
         int16_t b = m_line[x][2];
         line_rgb565[x] = rgb_to_rgb565(r, g, b);
       }
-      image_write_line(line_rgb565, pixel_y, modes[decode_mode].width, modes[decode_mode].max_height, modes[decode_mode].mode_string);
+      image_write_line(line_rgb565, pixel_y, modes[decode_mode].width, modes[decode_mode].max_height, decode_mode);
     }
   }
 

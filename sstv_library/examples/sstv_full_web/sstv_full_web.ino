@@ -20,6 +20,14 @@
 //
 // 
 //
+// WIFI: 
+//
+// Configure ssid and password
+//
+// Enable wifi in settings
+// Look at the ip address in the menu title
+// Connect from pc while the Pico sstv is in menu mode
+//
 // Transmission:
 //
 // Put your pictures (24 bit bmp) in the tx folder
@@ -52,11 +60,28 @@
 #include <algorithm>
 
 
+#if defined(PICO_RP2350)
+#define WIFI            //Comment for disabling wifi
+#endif
+
+#ifdef WIFI
+#include <WiFi.h>
+#include <WiFiServer.h>
+
+WiFiServer server(80);
+
+bool connected=false;
+
+#endif
 
 //CONFIGURATION SECTION
 ///////////////////////////////////////////////////////////////////////////////
 
 #define CALLSIGN "IS0JSV\0";
+
+const char* ssid     = "Undixedda noa";
+const char* password = "Miagolina25!";
+
 
 #define PIN_MISO 12 //not used by TFT but part of SPI bus
 #define PIN_CS   13
@@ -514,6 +539,9 @@ void setup() {
 
   load();
 
+#ifdef WIFI
+  if (settings.wifi) connectToWiFi();
+ #endif
 }
 
 void loop() {
@@ -596,6 +624,12 @@ void loop() {
       display->fillRect(DISPLAY_WIDTH/2, DISPLAY_HEIGHT-STATUS_BAR_HEIGHT-1, STATUS_BAR_HEIGHT, DISPLAY_WIDTH/2, COLOUR_BLACK);
       draw = false;
     }
+  #ifdef WIFI    
+    if ((WiFi.status() == WL_CONNECTED)&&(!connected)) {
+      server.begin();
+      connected=true;
+    }
+  #endif
 
   }
   sstv_decoder.stop();
@@ -778,6 +812,7 @@ e_sstv_tx_mode convert_mode(e_mode rx_mode)
 			return tx_martin_m1;
 	}
 }
+
 e_mode convert_mode(e_sstv_tx_mode tx_mode)
 {
 	switch (tx_mode) {
@@ -926,7 +961,11 @@ void launch_menu()
     "Settings"
   };
 
+#ifdef WIFI
+  String title="Menu "+WiFi.localIP().toString();
+#else
    String title="Menu";
+#endif
 
   menu(title.c_str(), menu_selection, menu_selections, 4);
   if(menu_selection == 0) {
@@ -950,9 +989,10 @@ void launch_menu()
       "Transmit Mode",
       "Slideshow Timeout",
       "Overlay",
-      "Overlay Text"
+      "Overlay Text",
+      "Wifi"
     };
-    if(menu("Settings", menu_selection, menu_selections, sizeof(menu_selections))) {
+    if(menu("Settings", menu_selection, menu_selections, 8)) {
       switch (menu_selection) 
       {
         case 0: { //Auto slant correction
@@ -986,7 +1026,18 @@ void launch_menu()
           text_entry(settings.overlay_text, 24);      
         }
           break;
-       
+        #ifdef WIFI
+        case 7: { //wifi
+          const char * const menu_selections[] = {"Off", "On"};
+          menu("Wifi", settings.wifi, menu_selections, 2);    
+          if (settings.wifi) {
+            reconnectWiFiAndClient();
+          } else {
+            disconnectWiFi();
+          }
+        }
+          break;
+        #endif
       }
     }
     save();
@@ -1037,6 +1088,10 @@ bool menu(const char* title, uint8_t &selection, const char * const menu_items[]
   
   while(1) {
     
+    #ifdef WIFI
+    if (settings.wifi) poll_wifi();
+    #endif
+
     if(button_down.is_pressed() && menu_item > 0){menu_item--; draw = true;} 
     if(button_up.is_pressed() && menu_item < num_menu_items-1){menu_item++; draw = true;}
     if(button_left.is_pressed()){selection = menu_item; return true;} //ok
@@ -1259,3 +1314,173 @@ void create_thumbnail(const char* filename, e_mode mode)
   
   bitmap.close();
 }
+
+/////////////////////////////////////////////////////////
+
+#ifdef WIFI
+
+bool isImage(String name) {
+  name.toLowerCase();
+  return name.endsWith(".bmp");
+}
+
+
+void sendImage(WiFiClient &client, String filename) {
+  FILE* file = fopen(filename.c_str(), "rb");
+  if (file==NULL) {
+    client.println("HTTP/1.1 404 Not Found\r\n");
+    client.println("Content-Type: text/plain\r\n\r\nFile not found");
+    return;
+  }
+
+  String contentType = "application/octet-stream";
+  contentType = "image/bmp";
+
+  client.println("HTTP/1.0 200 OK");
+  client.println("Content-Type: " + contentType);
+  client.println("Connection: close");
+  client.println();
+  int n;
+  uint8_t buffer[1024];
+  while ((n = fread(buffer, 1, sizeof(buffer) - 1, file)) > 0){
+    client.write(buffer, n);
+  } 
+  fclose(file);
+}
+void send404(WiFiClient &client) {
+  client.println("HTTP/1.0 404 Not found");
+  client.println();
+}
+
+void sendGallery(WiFiClient &client, int page, const char* folder) {
+  client.println("HTTP/1.0 200 OK");
+  client.println("Connection: close");
+  client.println("Content-Type: text/html");
+  client.println();
+  client.println("<!DOCTYPE html><html><head><meta charset='UTF-8'>");
+  client.println("<title>Galleria SD</title>");
+  client.println("<style>body{background: antiquewhite;}.foto{float:left;border:1px lightgray solid;padding: 5px;margin:10px;border-radius: 10px;background:white;height:322px;}img{margin:20px;width:320px;border:2px black solid}</style></head>");
+  client.println("<body><h1>Galleria immagini su SD</h1><hr><h2>Pagina ");
+  client.print(page);
+  client.print("</h2><h2> Folder ");
+  client.print(folder);
+  client.println("</h2><div style='display: inline flow-root list-item;'>");
+
+  Dir root = SDFS.openDir(folder);
+  int num=count_bitmaps(root);
+  root.rewind();
+  int n=0;
+  int disp=0;
+
+  while((root.next())&&(disp<4)) {
+    String name = root.fileName();;
+    if (isImage(name)) {
+      if (n>=page*4) {
+        client.print("<div class='foto'>");
+        client.print("<a href=?del=");
+        client.print(name);
+        client.print("><button style='width:100%'>Delete ");
+        client.print(name);
+        client.print("</button></a></br>");
+        client.print("<a href='img");
+        client.print(folder);
+        client.print("/");
+        client.print(name);
+        client.print("'><img src='img");
+        client.print(folder);
+        client.print("/");
+        client.print(name);
+        client.print("' /></a>");
+       
+        client.print("</div>");
+        disp++;
+      }
+      n++;
+    }
+  }
+  client.print("</div><hr>");
+
+  for (int i=0;i<=num/4;i++) {
+    client.println("<a href='?page=");
+    client.print(i);
+    client.println("'><button style='margin:5px;'>Page ");
+    client.print(i);
+    client.print("</button></a>");
+  }
+
+  client.println("</body></html>");
+  
+}
+
+void poll_wifi() {
+  static int page=0;
+  WiFiClient client = server.accept();
+ 
+  if (!client) return;
+
+  String request = client.readStringUntil('\r');
+  client.readStringUntil('\n');
+  request=request.substring(5,request.length()-8); //Remove "GET /" and "HTTP 1.1"
+
+  if (request.startsWith("img/")) {
+    int pos = request.indexOf('/');
+    String filename = request.substring(4);
+    filename.trim();
+    Serial.println(filename);
+    sendImage(client, filename);
+  } else
+  if (request.startsWith("?del=")) {
+    String filename = request.substring(5);
+    Serial.print("deleting ");
+    Serial.println(filename);
+    SDFS.remove(filename);
+    sendGallery(client,page,"/");
+  } else if (request.startsWith("?page=")) {
+    page=request.substring(6).toInt();
+    sendGallery(client,page,"/");
+  } else if (request.startsWith("favicon.ico")) {
+    send404(client);
+  } else if (request.startsWith("?tx=")) {
+    page=request.substring(4).toInt();
+     sendGallery(client,page,"/tx");
+  } else 
+   {
+    sendGallery(client,page,"/");
+  }
+
+  delay(1);
+  client.flush();
+
+  while (client.available()) {
+    client.read();
+  }
+  delay(100);
+  client.stop();
+}
+
+void connectToWiFi() {
+  Serial.print("Connecting to WiFi");
+  WiFi.setTimeout(5000);
+  WiFi.begin(ssid, password);
+}
+
+// Function to disconnect WiFi and turn off WiFi chip power
+void disconnectWiFi() {
+  Serial.println("Disconnecting WiFi...");  
+  WiFi.disconnect();               // Disconnect WiFi
+  delay(100);                      // Wait a bit
+  WiFi.mode(WIFI_OFF);             // Turn off WiFi mode
+  delay(100);                      // Wait a bit
+  digitalWrite(23, LOW);           // Turn off WiFi chip power
+  Serial.println("WiFi disconnected and power to WiFi chip is off.");
+}
+
+// Function to reconnect WiFi and WiFiClient
+void reconnectWiFiAndClient() {
+  digitalWrite(23, HIGH);          // Turn on WiFi chip power
+  delay(100);                      // Wait for stabilization
+  Serial.println("Reconnecting WiFi...");
+  WiFi.mode(WIFI_STA);             // Set WiFi mode to STA
+  connectToWiFi();  
+}  // Reconnect to WiFi
+#endif
