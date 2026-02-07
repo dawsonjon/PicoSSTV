@@ -29,7 +29,7 @@ as a simple sketch. I wanted to include a number of new features that would
 require different (additional) hardware. I wanted to provide software to
 support existing hardware while also supporting new hardware with a more
 comprehensive set of features. I decided that the best approach was to move from an Arduino sketch to
-providing an Arduino library. 
+providing an Arduino library.
 
 1. Install `Arduino IDE <https://support.arduino.cc/hc/en-us/articles/360019833020-Download-and-install-Arduino-IDE#installation-instructions>`__.
 2. Install `Arduino Pico Core <https://github.com/earlephilhower/arduino-pico?tab=readme-ov-file#installing-via-arduino-boards-manager>`__.
@@ -51,21 +51,29 @@ is the ability to include a number of code examples. I chose to use this
 feature to provide a few different example designs, ranging from the very simple
 to the more complete.
 
-sstv_receive_tft 
+sstv_receive_tft
 ''''''''''''''''
 
 Similar to the original design, supporting the original hardware but with new modes.
 
 .. image:: images/tft_circuit.png
 
-sstv_receive_with_sd 
+sstv_receive_with_sd
 ''''''''''''''''''''
 
 Adds simple automatic SD card logging to the basic design
 
 .. image:: images/sd_card_circuit.png
 
-sstv_transmit_sd_basic 
+sstv_transmit_demo
+''''''''''''''''''
+
+Transmit (RF) image from flash.
+Connect wire to pin 1. Press bootsel to transmit.
+
+.. image:: images/transmit_demo.png
+
+sstv_transmit_sd_basic
 ''''''''''''''''''''''
 
 A minimal transmit-only example. Transmits an image from SD card.
@@ -78,7 +86,7 @@ sstv_full
 Receive and transmit functionality, SD card storage and full menu driven UI.
 
 .. image:: images/full_circuit.png
-  
+
 
 Documentation
 -------------

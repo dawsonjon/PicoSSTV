@@ -15,6 +15,8 @@
 
 #include <cmath>
 
+static int16_t m_sin_table[1024];
+
 c_sstv_encoder :: c_sstv_encoder(double Fs_Hz)
 {
     m_Fs_Hz = Fs_Hz;
@@ -125,7 +127,7 @@ void c_sstv_encoder :: generate_scottie(e_sstv_tx_mode mode)
       height = 256;
       colour_time_ms = 345.6;
       break;
-  
+
     default: return;
   }
 
@@ -273,9 +275,9 @@ void c_sstv_encoder :: generate_pd(e_sstv_tx_mode mode)
   //send rows
   for(uint16_t row=0u; row < height; row+=2)
   {
-    uint8_t row_y[width];
-    uint8_t row_cb[width];
-    uint8_t row_cr[width];
+    static uint8_t row_y[640];
+    static uint8_t row_cb[640];
+    static uint8_t row_cr[640];
 
     draw_progress_bar(row,height);
 
@@ -360,9 +362,9 @@ void c_sstv_encoder :: generate_robot(e_sstv_tx_mode mode)
   //send rows
   for(uint16_t row=0u; row < height; row+=2)
   {
-    uint8_t row_y[width];
-    uint8_t row_cb[width];
-    uint8_t row_cr[width];
+    static uint8_t row_y[320];
+    static uint8_t row_cb[320];
+    static uint8_t row_cr[320];
 
     draw_progress_bar(row,height);
 
@@ -391,10 +393,10 @@ void c_sstv_encoder :: generate_robot(e_sstv_tx_mode mode)
 
     if (mode==tx_robot_72 || mode==tx_robot_24) {
       generate_tone(2300, colour_gap_ms_f16);
-    
+
       for(uint16_t col=0u; col < width; ++col)
         generate_tone(1500 + ((2300-1500)*(uint16_t)row_cr[col]/256), pixel_time_ms_f16/2);
-    
+
     }
 
     for(uint16_t col=0u; col < width; ++col)
@@ -466,7 +468,7 @@ void c_sstv_encoder :: generate_bw(e_sstv_tx_mode mode)
 
     default: return;
   }
-  uint32_t hsync_pulse_ms_f16 = hsync_pulse_ms * (1<<16); 
+  uint32_t hsync_pulse_ms_f16 = hsync_pulse_ms * (1<<16);
   uint32_t scan_line_ms_f16 = scan_line_ms * (1<<16);
   uint32_t pixel_time_ms_f16 = (scan_line_ms *(1<<16))/width;
 
@@ -485,7 +487,7 @@ void c_sstv_encoder :: generate_bw(e_sstv_tx_mode mode)
       uint8_t y, cr, cb;
       rgb_to_ycrcb_fixed(r, g, b, y, cr, cb);
       row_y[col] = y;
-      
+
     }
 
     generate_tone(1200, hsync_pulse_ms_f16);
@@ -494,7 +496,7 @@ void c_sstv_encoder :: generate_bw(e_sstv_tx_mode mode)
     for(uint16_t col=0u; col < width; ++col)
       generate_tone(1500 + ((2300-1500)*(uint16_t)row_y[col]/256), pixel_time_ms_f16);
 
-   
+
     if(m_abort) return;
   }
 }

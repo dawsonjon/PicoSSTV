@@ -17,17 +17,17 @@
 #include <cstdint>
 
 enum e_sstv_tx_mode {
-  tx_martin_m1, 
-  tx_martin_m2, 
-  tx_scottie_s1, 
-  tx_scottie_s2, 
-  tx_scottie_dx, 
-  tx_PD_50, 
-  tx_PD_90, 
-  tx_PD_120, 
-  tx_PD_180, 
-  tx_robot_24, 
-  tx_robot_36, 
+  tx_martin_m1,
+  tx_martin_m2,
+  tx_scottie_s1,
+  tx_scottie_s2,
+  tx_scottie_dx,
+  tx_PD_50,
+  tx_PD_90,
+  tx_PD_120,
+  tx_PD_180,
+  tx_robot_24,
+  tx_robot_36,
   tx_robot_72,
   tx_bw_8,
   tx_bw_12,
@@ -42,11 +42,8 @@ class c_sstv_encoder
   private :
   double m_Fs_Hz;
   uint32_t m_phase;
-  int16_t m_sin_table[1024];
   uint32_t m_residue_f16;
   bool m_abort;
-  void output_samples(uint32_t frequency, uint16_t samples);
-  void generate_tone(uint16_t frequency, uint32_t time_ms_f16);
   bool calculate_parity(uint8_t number);
   void generate_vis_bit(uint8_t level);
   void generate_vis_code(e_sstv_tx_mode mode);
@@ -61,6 +58,8 @@ class c_sstv_encoder
   virtual void output_sample(int16_t sample) = 0;
   virtual uint8_t get_image_pixel(uint16_t width, uint16_t height, uint16_t y, uint16_t x, uint8_t colour) = 0;
   virtual void draw_progress_bar(uint16_t row, uint16_t tot_height) {};
+  virtual void generate_tone(uint16_t frequency, uint32_t time_ms_f16);
+  virtual void output_samples(uint32_t frequency, uint16_t samples);
 
   public:
   c_sstv_encoder(double fs_Hz);

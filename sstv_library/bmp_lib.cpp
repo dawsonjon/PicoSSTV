@@ -115,12 +115,12 @@ void c_bmp_writer :: update_header()
     file_write(&info_header, sizeof(info_header), 1);
 }
 
-void c_bmp_writer :: close() 
+void c_bmp_writer :: close()
 {
     file_close();
 }
 
-void c_bmp_writer :: write_row_rgb565(uint16_t* rgb565_data) 
+void c_bmp_writer :: write_row_rgb565(uint16_t* rgb565_data)
 {
     uint8_t row[m_width_padded];
 
@@ -150,7 +150,7 @@ void c_bmp_writer :: write_row_rgb565(uint16_t* rgb565_data)
     m_y++;
 }
 
-uint8_t c_bmp_reader :: open(const char* filename, uint16_t &width, uint16_t &height) 
+uint8_t c_bmp_reader :: open(const char* filename, uint16_t &width, uint16_t &height)
 {
     if(!file_open(filename)) return -1;
     BMPFileHeader file_header;
@@ -179,12 +179,12 @@ uint8_t c_bmp_reader :: open(const char* filename, uint16_t &width, uint16_t &he
     } else return -3; //unsupported bmp file
 
     file_seek(m_start_of_image);
-    
+
     return 1;
 
 }
 
-void c_bmp_reader :: read_row_rgb565(uint16_t *rgb565_data) 
+void c_bmp_reader :: read_row_rgb565(uint16_t *rgb565_data)
 {
     uint8_t row[m_row_bytes];
     if(!m_top_down)
@@ -225,7 +225,7 @@ void c_bmp_reader :: read_row_rgb565(uint16_t *rgb565_data)
     m_y++;
 }
 
-void c_bmp_reader :: close() 
+void c_bmp_reader :: close()
 {
     file_close();
 }
