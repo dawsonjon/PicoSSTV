@@ -12,6 +12,9 @@ pixels = []
 for y in range(h):
   for x in range(w):
     r, g, b = im[y][x][:3]
+    r = int(r)
+    g = int(g)
+    b = int(b)
     color = ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | b >> 3
     color = ((color & 0xff00) >> 8 | (color & 0xff) << 8)
     pixels.append("0x%04x"%color)
