@@ -16,11 +16,11 @@
 
 #include "half_band_filter2.h"
 
-enum e_mode 
+enum e_sstv_mode
 {
-  martin_m1, 
-  martin_m2, 
-  scottie_s1, 
+  martin_m1,
+  martin_m2,
+  scottie_s1,
   scottie_s2,
   scottie_dx,
   pd_50,
@@ -44,14 +44,14 @@ enum e_sync_state
   confirm,
 };
 
-enum e_state
+enum e_sstv_state
 {
   detect_sync,
   confirm_sync,
   decode_line,
 };
 
-struct s_sstv_mode 
+struct s_sstv_mode
 {
   uint16_t width;
   uint16_t max_height;
@@ -60,29 +60,27 @@ struct s_sstv_mode
   uint32_t samples_per_colour_gap;
   uint32_t samples_per_pixel;
   uint32_t samples_per_hsync;
-  char const * mode_string;
+  char const* mode_string;
 };
 
 class c_sstv_decoder
 {
 
-  private:
-
+private:
   s_sstv_mode sstv_mode;
   float m_Fs;
   uint32_t m_scale;
   uint32_t sync_counter = 0;
-  //uint16_t y_pixel = 0;
   uint16_t last_x = 0;
   uint16_t last_y = 0;
-  uint32_t image_sample = 0;
-  uint16_t last_sample = 0;
+  uint32_t m_image_sample = 0;
+  uint16_t last_frequency = 0;
   uint32_t last_hsync_sample = 0;
   uint32_t sample_number = 0;
   uint32_t confirmed_sync_sample = 0;
-  e_state state = detect_sync;
+  e_sstv_state state = detect_sync;
   e_sync_state sync_state = detect;
-  void sample_to_pixel(uint16_t &x, uint16_t &y, uint8_t &colour, int32_t image_sample);
+  void sample_to_pixel(uint16_t& x, uint16_t& y, uint8_t& colour, int32_t image_sample);
   uint8_t frequency_to_brightness(uint16_t x);
   uint32_t mean_samples_per_line;
   uint32_t sync_timeout = 0;
@@ -92,38 +90,40 @@ class c_sstv_decoder
   int16_t last_phase = 0;
   uint8_t ssb_phase = 0;
   half_band_filter2 ssb_filter;
-  int16_t frequency;
-  e_mode decode_mode;
+  int16_t m_frequency;
+  e_sstv_mode decode_mode;
   s_sstv_mode modes[num_modes];
   bool m_auto_slant_correction;
   uint32_t m_timeout;
   bool m_image_open_flag = false;
   bool m_image_complete_flag = false;
-  uint8_t m_line[640][5]; //array to contain seperate colour components of each decoded line
+  uint8_t m_line[640][5]; // array to contain seperate colour components of each decoded line
 
-  void decode_sample(uint16_t sample, uint16_t &pixel_y, uint16_t &pixel_x, uint8_t &pixel_colour, uint8_t &pixel, bool &pixel_complete, bool &line_complete, bool &image_complete);
+  void decode_sample(uint16_t magnitude, uint16_t frequency, uint16_t &pixel_y, uint16_t &pixel_x, uint8_t &pixel_colour, uint8_t &pixel, bool &pixel_complete, bool &line_complete, bool &image_complete);
 
-
-  //override one of these hardware dependent functions.
+  // override one of these hardware dependent functions.
   /////////////////////////////////////////////////////////////////////////////
 
-  //The decoder can work with frequency data, IQ data or (real, mono) audio samples.
-  //override one of these deneding on what you need.
+  // The decoder can work with frequency data, IQ data or (real, mono) audio samples.
+  // override one of these deneding on what you need.
 
   virtual int16_t get_audio_sample() = 0;
-  virtual void get_iq_sample(int16_t &i, int16_t &q);
-  virtual uint16_t get_frequency_sample();
+  virtual void get_iq_sample(int16_t& i, int16_t& q);
+  virtual void get_frequency_sample(uint16_t &magnitude, uint16_t &frequency);
 
-  //Override this function to output a line of image
-  virtual void image_write_line(uint16_t line_rgb565[], uint16_t y, uint16_t width, uint16_t height, const char* mode_string) = 0;
-  
-  virtual void scope(uint16_t mag, int16_t freq)  {};
+  // Override this function to output a line of image
+  virtual void image_write_line(uint16_t line_rgb565[], uint16_t y, uint16_t width, uint16_t height,
+                                const char* mode_string) = 0;
+  virtual void scope(uint16_t mag, int16_t freq)
+  {
+    (void)mag;
+    (void)freq;
+  };
 
-  public:
+public:
   c_sstv_decoder(float Fs);
   void decode_image(uint8_t timeout_s, bool slant_correction);
-  bool decode_image_non_blocking(uint8_t timeout_s, bool slant_correction, bool & image_in_progress);
-
+  bool decode_image_non_blocking(uint8_t timeout_s, bool slant_correction, bool& image_in_progress);
 };
 
 #endif
