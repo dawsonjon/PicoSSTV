@@ -49,7 +49,7 @@
 #define PIN_MOSI 15
 #define PIN_DC   11
 #define SPI_PORT spi1
-
+#define TX_PTT    16
 #define SDCARD_MISO 4
 #define SDCARD_MOSI 7
 #define SDCARD_CS   5
@@ -440,6 +440,8 @@ void setup() {
   Serial.println("github: https://github.com/dawsonjon/101Things");
   Serial.println("docs: 101-things.readthedocs.io");
   pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(TX_PTT, OUTPUT);
+  digitalWrite(TX_PTT, LOW);
   configure_display();
   initialise_sdcard();
   VFS.root(SDFS);
@@ -628,9 +630,11 @@ void transmit_image(const char* filename) {
   const float sample_rate_Hz = (double)rp2040.f_cpu()/divider;
   c_sstv_encoder_pwm sstv_encoder(sample_rate_Hz);
   sstv_encoder.open(filename);
-  digitalWrite(LED_BUILTIN, 1);
+  digitalWrite(LED_BUILTIN, HIGH);
+  digitalWrite(TX_PTT, HIGH);
   sstv_encoder.generate_sstv((e_sstv_tx_mode)settings.transmit_mode);
-  digitalWrite(LED_BUILTIN, 0);
+  digitalWrite(LED_BUILTIN, LOW);
+  digitalWrite(TX_PTT, LOW);
   sstv_encoder.close();
   display->clear(COLOUR_NAVY);
   display->drawString((DISPLAY_WIDTH-(12*strlen("Pico SSTV")))/2, 100, font_16x12, "Pico SSTV", COLOUR_GREY, COLOUR_NAVY);
@@ -701,7 +705,6 @@ void display_image(const char* filename, bool show_overlay)
         while(pixel_number <= overlay_x) {
           //display expects byteswapped data
           uint16_t pixel = overlay_buffer[(overlay_y*overlay_width) + overlay_x];
-          //pixel = (pixel >> 8) | (pixel << 8);
           scaled_row[pixel_number] = pixel;
           pixel_number++;
         }
